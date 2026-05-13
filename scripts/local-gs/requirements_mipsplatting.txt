@@ -1,0 +1,50 @@
+# requirements_mipsplatting.txt — Mip-Splatting trainer (P06)
+#
+# Instale APENAS dentro de um venv dedicado (recomendado: .venv-mip), pois
+# o trainer requer rasterizador CUDA proprio que pode conflitar com outras
+# instalacoes do PyTorch.
+#
+# ─── 1. PyTorch CUDA (instale ANTES dos demais) ─────────────────────────────
+#
+# Windows + CUDA 12.1 (caso do founder, RTX 5060 Ti / RTX 4090 RunPod):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#
+# Linux + CUDA 12.1:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#
+# Confira a versao recomendada pelo repo Mip-Splatting; o paper foi testado
+# em PyTorch 2.0+. Versoes mais novas funcionam contanto que diff-gaussian-
+# rasterization compile.
+
+# ─── 2. Pacotes Python diretos ──────────────────────────────────────────────
+plyfile>=1.0.3
+tqdm>=4.66.0
+opencv-python>=4.9.0
+numpy>=1.24.0,<2.0.0
+Pillow>=10.0.0
+
+# ─── 3. Dependencias do repo Mip-Splatting (instale apos clone) ─────────────
+#
+# A maior parte das deps Python ja sai do requirements.txt do repo oficial:
+#   pip install -r scripts\local-gs\mip-splatting\requirements.txt
+#
+# O rasterizador CUDA (submodulo) precisa ser compilado a partir do source:
+#   pip install scripts\local-gs\mip-splatting\submodules\diff-gaussian-rasterization
+#
+# No Windows isso requer Visual Studio Build Tools 2019/2022 (Desktop dev C++).
+# No Linux exige gcc/g++ + CUDA toolkit instalado no PATH (RunPod ja vem com).
+#
+# Em caso de erro de compilacao, ver "Plano B" no prompt P06.
+
+# ─── 4. Observacoes ─────────────────────────────────────────────────────────
+#
+# - plyfile: usado pelo run_mipsplatting.py para validar campos 3DGS do
+#   point_cloud.ply final (presenca de scale_*, rot_*, f_dc_*, opacity;
+#   ausencia de f_rest_* quando --sh-degree=0).
+#
+# - opencv-python e Pillow: presentes para o trainer abrir frames e
+#   suportar resize automatico (--resolution).
+#
+# - numpy < 2.0.0: alguns submodulos CUDA do Mip-Splatting nao compilaram
+#   contra ABI numpy 2.x ate o cutoff deste prompt. Quando o repo upgrade,
+#   relaxe a restricao.

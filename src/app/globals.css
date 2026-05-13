@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* === IMERSO DESIGN SYSTEM (tokens espelhados em tailwind.config) === */
+
+:root {
+  --background: #0a0e1a;
+  --surface: #0f1729;
+  --surface-elevated: #1a2440;
+  --surface-hover: #1e2a47;
+  --primary: #4f8ef7;
+  --primary-hover: #6ba0f9;
+  --accent: #d4a574;
+  --accent-hover: #e0b589;
+  --text-primary: #f5f2ec;
+  --text-secondary: #a8b2c7;
+  --text-muted: #6b7a99;
+  --border: #1e2a47;
+  --border-strong: #2a3856;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
+  --glass: rgba(15, 23, 41, 0.85);
+  --overlay: rgba(10, 14, 26, 0.85);
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-sans: 'Geist', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration: 200ms;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html,
+  body {
+    background: var(--background);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply font-sans text-text-primary;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  ::selection {
+    @apply bg-primary/30 text-text-primary;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--surface);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 9999px;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(79, 142, 247, 0.4);
+  }
+}
+
+@keyframes wa-nudge {
+  0%,
+  100% {
+    box-shadow: 0 8px 24px rgba(37, 211, 102, 0.4);
+  }
+  50% {
+    box-shadow: 0 8px 24px rgba(37, 211, 102, 0.4), 0 0 0 10px rgba(37, 211, 102, 0.12);
+  }
+}
+
+@layer utilities {
+  .animate-pulse-soft {
+    animation: pulseSoft 1.6s ease-in-out infinite;
+  }
+
+  .glass {
+    background: rgba(15, 23, 41, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .container-imerso {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+}

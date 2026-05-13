@@ -1,0 +1,24 @@
+# P05 - hloc (SuperPoint + LightGlue) para feature extraction/matching neural.
+#
+# Instalacao em venv separado e RECOMENDADA p/ nao conflitar com o Brush:
+#   python -m venv .venv-hloc
+#   .venv-hloc\Scripts\activate
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#   pip install -r scripts\local-gs\requirements_hloc.txt
+#
+# CUDA e' OBRIGATORIO em prod (hloc + LightGlue em CPU sao impraticavel).
+# Para a versao do torch + CUDA, ajuste o index-url do pip conforme sua GPU/driver.
+#
+# Python 3.10 e' o mais testado para hloc. Em Python 3.12, h5py pode dar problema
+# na instalacao no Windows — se acontecer, troque por Python 3.10 (pyenv-win
+# ou instalador oficial) ou use WSL2. Veja "Plano B" em P05.
+
+numpy
+opencv-python
+h5py
+tqdm
+pycolmap>=0.6.0
+
+# hloc e LightGlue nao estao no PyPI; instalam do GitHub.
+git+https://github.com/cvg/Hierarchical-Localization.git
+git+https://github.com/cvg/LightGlue.git

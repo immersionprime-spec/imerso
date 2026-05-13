@@ -1,0 +1,13 @@
+-- ============================================================
+-- SEED: Super admin (Sheik) — vincular após cadastro manual em
+-- Supabase Dashboard → Authentication → Add user
+-- Depois rodar este SQL com o UUID do usuário criado.
+-- ============================================================
+-- Exemplo (descomentar e substituir UUID):
+-- insert into public.user_roles (user_id, role)
+-- values ('UUID-DO-SHEIK-AQUI', 'super_admin')
+-- on conflict (user_id) do update set role = 'super_admin';
+
+-- Imobiliária de teste (opcional)
+-- insert into public.imobiliarias (slug, nome, whatsapp_principal, cidade)
+-- values ('demo', 'Imobiliária Demo', '+5547999999999', 'Balneário Camboriú');

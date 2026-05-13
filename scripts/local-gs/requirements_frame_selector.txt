@@ -1,0 +1,6 @@
+# Python 3.10+ — instalar na venv ou globalmente:
+#   pip install -r scripts/local-gs/requirements_frame_selector.txt
+opencv-python>=4.8.0,<5
+numpy>=1.24.0,<3
+Pillow>=10.0.0,<12
+imagehash>=4.3.1,<5

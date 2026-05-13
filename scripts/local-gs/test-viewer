@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Imerso — visualizador PoC (.ply)</title>
+  <!--
+    Para carregar via ?ply=, sirva esta pasta (ou a raiz do repo) com HTTP, ex.: npx serve — file:// não funciona para fetch do PLY.
+    Brave/Chrome bloqueiam carregar arquivos locais arbitrários em file:// por segurança.
+  -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0a; font-family: system-ui, sans-serif; }
+    #banner {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+      padding: 10px 14px; font-size: 12px; color: #e0e0e0; background: rgba(20,20,24,0.92); border-bottom: 1px solid #333;
+    }
+    #viewer-root { position: fixed; inset: 0; top: 42px; }
+    #status {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 9;
+      padding: 8px 14px; border-radius: 8px; font-size: 13px; color: #aaa; background: rgba(0,0,0,0.6);
+    }
+    #err {
+      position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center;
+      padding: 24px; text-align: center; color: #f87171; font-size: 15px; line-height: 1.5; background: rgba(10,10,10,0.95);
+    }
+    #err.visible { display: flex; flex-direction: column; gap: 8px; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://esm.sh/three@0.171.0",
+      "three/addons/": "https://esm.sh/three@0.171.0/examples/jsm/",
+      "@mkkellogg/gaussian-splats-3d": "https://esm.sh/@mkkellogg/gaussian-splats-3d@0.4.7?deps=three@0.171.0"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="banner">
+    <strong>Aviso:</strong> para usar <code>?ply=/caminho/relativo/scene.ply</code>, sirva o projeto com
+    <code>npx serve</code> (ou similar) na raiz do repositório — <code>file://</code> não permite carregar o PLY por URL.
+    Você pode também arrastar um ficheiro <code>.ply</code> para esta janela.
+  </div>
+  <div id="viewer-root"></div>
+  <div id="status">A carregar…</div>
+  <div id="err" role="alert"></div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { Viewer, RenderMode } from '@mkkellogg/gaussian-splats-3d';
+
+    const root = document.getElementById('viewer-root');
+    const statusEl = document.getElementById('status');
+    const errEl = document.getElementById('err');
+
+    function setStatus(t) { statusEl.textContent = t; }
+    function showError(msg) {
+      errEl.textContent = msg;
+      errEl.classList.add('visible');
+      setStatus('Erro');
+    }
+    function hideError() {
+      errEl.classList.remove('visible');
+      errEl.textContent = '';
+    }
+
+    /** Ajuste de câmara ao bounding box do splat (alinhado ao SplatViewer do Imerso). */
+    function fitCameraToSplat(viewer, cameraUpInverted = true) {
+      const splatMesh =
+        viewer?.splatMesh ?? viewer?.splatScenes?.[0]?.splatMesh ?? viewer?.splatScenes?.[0];
+      if (!splatMesh) return;
+      const box = new THREE.Box3().setFromObject(splatMesh);
+      if (box.isEmpty()) return;
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
+      const maxDim = Math.max(size.x, size.y, size.z);
+      if (!Number.isFinite(maxDim) || maxDim === 0) return;
+      const distance = maxDim * 1.2;
+      const offsetZ = cameraUpInverted ? -distance : distance;
+      if (viewer.camera) {
+        viewer.camera.position.set(center.x, center.y, center.z + offsetZ);
+        viewer.camera.lookAt(center);
+        viewer.camera.updateProjectionMatrix?.();
+      }
+      if (viewer.controls?.target) {
+        viewer.controls.target.copy(center);
+        viewer.controls.update?.();
+      }
+    }
+
+    let viewerInstance = null;
+    let orbitExtra = null;
+
+    function disposeViewer() {
+      if (orbitExtra) {
+        orbitExtra.dispose();
+        orbitExtra = null;
+      }
+      if (viewerInstance) {
+        try { viewerInstance.dispose?.(); } catch (_) {}
+        viewerInstance = null;
+      }
+      root.innerHTML = '';
+    }
+
+    async function loadPlyFromUrl(url, label) {
+      hideError();
+      setStatus('A inicializar visualizador…');
+      disposeViewer();
+
+      const container = document.createElement('div');
+      container.style.width = '100%';
+      container.style.height = '100%';
+      root.appendChild(container);
+
+      try {
+        const viewer = new Viewer({
+          rootElement: container,
+          cameraUp: [0, -1, 0],
+          initialCameraPosition: [0, 0, -5],
+          initialCameraLookAt: [0, 0, 0],
+          sphericalHarmonicsDegree: 2,
+          antialiased: true,
+          renderMode: RenderMode.Always,
+          gpuAcceleratedSort: false,
+          enableSIMDInSort: false,
+        });
+        viewerInstance = viewer;
+
+        setStatus('A carregar ' + label + '…');
+        await viewer.addSplatScene(url, {
+          progressiveLoad: true,
+          showLoadingUI: false,
+          onProgress: (p) => setStatus('A carregar… ' + Math.round(p) + '%'),
+        });
+
+        fitCameraToSplat(viewer, true);
+        viewer.start();
+
+        // OrbitControls explícitos se o Viewer não expuser controls (API varia por versão).
+        if (viewer.renderer?.domElement && viewer.camera && !viewer.controls) {
+          orbitExtra = new OrbitControls(viewer.camera, viewer.renderer.domElement);
+          orbitExtra.enableDamping = true;
+          orbitExtra.update();
+        }
+
+        setStatus(label + ' — arraste para orbitar, scroll para zoom');
+      } catch (e) {
+        console.error(e);
+        showError('Falha ao carregar o PLY.\n\n' + (e?.message || String(e)));
+        disposeViewer();
+      }
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const plyParam = params.get('ply');
+    if (plyParam) {
+      const url = plyParam.startsWith('http://') || plyParam.startsWith('https://')
+        ? plyParam
+        : new URL(plyParam, window.location.origin).href;
+      loadPlyFromUrl(url, decodeURIComponent(plyParam));
+    } else {
+      setStatus('Arraste um ficheiro .ply para aqui ou use ?ply=/caminho/relativo/scene.ply (com servidor HTTP)');
+    }
+
+    window.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const f = e.dataTransfer?.files?.[0];
+      if (!f || !f.name.toLowerCase().endsWith('.ply')) {
+        showError('Solte um ficheiro .ply válido.');
+        return;
+      }
+      const objUrl = URL.createObjectURL(f);
+      void loadPlyFromUrl(objUrl, f.name);
+    });
+  </script>
+</body>
+</html>

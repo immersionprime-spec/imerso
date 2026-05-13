@@ -1,0 +1,24 @@
+# requirements_lightgaussian.txt - LightGaussian pruning (P07)
+#
+# CPU-friendly. Nao requer CUDA nem diff-gaussian-rasterization (restricao #10
+# do prompt P07). Pode rodar no mesmo venv do P01 (.venv ou base), mas e ok
+# instalar tudo no global se preferir manter simples.
+#
+# Para rodar:
+#   pip install -r scripts\local-gs\requirements_lightgaussian.txt
+#
+# Sklearn so e usado quando --quantize esta ativo (default OFF).
+
+numpy>=1.24.0
+plyfile>=1.0.3
+scikit-learn>=1.3.0      # so usado com --quantize
+
+# Observacoes:
+#
+# - torch NAO e dependencia. O calculo de significancia usa apenas numpy
+#   (projecao do centro de cada gaussiana em cada camera). Para tours com
+#   > 500k gaussianas e > 200 views, considere --view-sample 30 (Plano B
+#   do P07) ou rode numa maquina com mais RAM.
+#
+# - sklearn e listado mas e estritamente opcional (so quando --quantize).
+#   Se preferir nao instalar, omita esse pacote e nao passe --quantize.

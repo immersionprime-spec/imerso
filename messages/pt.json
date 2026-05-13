@@ -1,0 +1,602 @@
+{
+  "common": {
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "back": "Voltar",
+    "next": "Próximo",
+    "search": "Buscar",
+    "yes": "Sim",
+    "no": "Não",
+    "confirm": "Confirmar",
+    "error_generic": "Ocorreu um erro. Tente novamente."
+  },
+  "landing": {
+    "nav": {
+      "how": "Como funciona",
+      "cases": "Casos",
+      "faq": "FAQ",
+      "cta": "Fale no WhatsApp"
+    },
+    "hero": {
+      "badge": "Balneário Camboriú · Gaussian Splatting",
+      "title": "Tours imobiliários 3D que vendem antes da visita",
+      "subtitle": "Transforme seu imóvel em uma experiência imersiva que seu cliente explora pelo celular, sem app, sem hardware.",
+      "cta_primary": "Solicitar tour",
+      "cta_secondary": "Ver exemplo",
+      "scroll_hint": "Role para conhecer"
+    },
+    "hero_visual": {
+      "eyebrow": "Tours 3D · Balneário Camboriú",
+      "headline_1": "Seu imóvel em 3D.",
+      "headline_2a": "Qualquer celular.",
+      "headline_2b": "Sem app.",
+      "sub": "Tours virtuais fotorrealistas que o cliente acessa por link — em segundos. A gente filma, processa e entrega pronto.",
+      "cta_demo": "Ver exemplo ao vivo →",
+      "proof_1": "Sem app",
+      "proof_2": "Sem hardware",
+      "proof_3": "Sem mensalidade"
+    },
+    "demo": {
+      "title": "Veja um tour em ação",
+      "subtitle": "Navegação fluida no navegador — desktop ou celular.",
+      "embed_fallback": "Configure NEXT_PUBLIC_LANDING_DEMO_EMBED_URL no .env para exibir um tour aqui.",
+      "open_new": "Abrir em nova aba"
+    },
+    "how_it_works": {
+      "title": "Como funciona",
+      "steps": [
+        {
+          "title": "Você solicita",
+          "desc": "Fale com a gente pelo formulário ou WhatsApp."
+        },
+        {
+          "title": "Nossa equipe captura",
+          "desc": "Vamos até o imóvel e filmamos com equipamento profissional."
+        },
+        {
+          "title": "Você recebe o link",
+          "desc": "Em até 48h o tour 3D fica pronto para compartilhar."
+        }
+      ]
+    },
+    "use_cases": {
+      "title": "Para quem é o Imerso",
+      "items": [
+        {
+          "title": "Imobiliárias",
+          "desc": "Reduza visitas ociosas, qualifique leads e venda mais rápido."
+        },
+        {
+          "title": "Airbnb / Temporada",
+          "desc": "Aumente conversão mostrando o imóvel real com profundidade."
+        },
+        {
+          "title": "Espaços para eventos",
+          "desc": "Permita que noivos e produtores explorem o espaço de qualquer lugar."
+        },
+        {
+          "title": "Concessionárias",
+          "desc": "Showroom virtual sempre aberto."
+        }
+      ]
+    },
+    "before_after": {
+      "title": "Antes e depois",
+      "before": "Foto estática",
+      "after": "Imersão 3D navegável",
+      "caption": "Do flat ao explorável — seu cliente entende o espaço antes da visita."
+    },
+    "pricing": {
+      "title": "Investimento",
+      "label": "Sob consulta",
+      "desc": "Cada projeto é único. Fale com a gente para um orçamento personalizado.",
+      "cta": "Pedir orçamento"
+    },
+    "testimonials": {
+      "title": "Quem confia",
+      "placeholder": "Depoimentos reais serão adicionados em breve.",
+      "items": [
+        {
+          "quote": "“Reduzimos visitas improdutivas e fechamos mais rápido.”",
+          "name": "Cliente Imerso",
+          "role": "Imobiliária — BC"
+        },
+        {
+          "quote": "“O tour pelo celular impressionou os compradores.”",
+          "name": "Cliente Imerso",
+          "role": "Corretor"
+        },
+        {
+          "quote": "“Processo simples e resultado premium.”",
+          "name": "Cliente Imerso",
+          "role": "Proprietário"
+        }
+      ]
+    },
+    "faq": {
+      "title": "Perguntas frequentes",
+      "items": [
+        {
+          "q": "Quanto custa um tour?",
+          "a": "O valor varia conforme tamanho e complexidade do imóvel. Solicite um orçamento."
+        },
+        {
+          "q": "Em quanto tempo fica pronto?",
+          "a": "De 24 a 72 horas após a captura."
+        },
+        {
+          "q": "Preciso de equipamento?",
+          "a": "Não. Nossa equipe vai ao local com câmera profissional."
+        },
+        {
+          "q": "Qual região vocês atendem?",
+          "a": "Balneário Camboriú e Itajaí; outras regiões sob consulta."
+        },
+        {
+          "q": "Posso compartilhar o link?",
+          "a": "Sim. Um link único para WhatsApp, e-mail e redes."
+        },
+        {
+          "q": "Funciona no celular?",
+          "a": "Sim. Roda no navegador em celulares e desktops modernos."
+        }
+      ]
+    },
+    "lead_form": {
+      "title": "Solicite seu tour",
+      "name": "Seu nome",
+      "whatsapp": "WhatsApp",
+      "email": "E-mail (opcional)",
+      "tipo": "Tipo de imóvel",
+      "tipo_placeholder": "Selecione",
+      "tipo_apartamento": "Apartamento",
+      "tipo_casa": "Casa",
+      "tipo_comercial": "Comercial",
+      "tipo_terreno": "Terreno",
+      "tipo_outro": "Outro",
+      "cidade": "Cidade",
+      "mensagem": "Mensagem (opcional)",
+      "consent_rich": "Concordo com a <privacy>política de privacidade</privacy> e o tratamento dos meus dados.",
+      "submit": "Quero meu tour",
+      "submitting": "Enviando…",
+      "success_toast": "Recebemos seus dados! Abrindo o WhatsApp…",
+      "error_toast": "Não foi possível enviar. Tente novamente."
+    },
+    "footer": {
+      "tagline": "Tours 3D fotorrealistas para imobiliárias, Airbnb, eventos e concessionárias.",
+      "company": "Navegação",
+      "nav_how": "Como funciona",
+      "contact": "Contato",
+      "legal": "Legal",
+      "section_company": "Empresa",
+      "section_contact": "Contato",
+      "section_social": "Social",
+      "link_whatsapp": "WhatsApp",
+      "link_email": "E-mail",
+      "link_instagram": "Instagram",
+      "link_linkedin": "LinkedIn",
+      "link_termos": "Termos de uso",
+      "link_privacidade": "Privacidade",
+      "link_lgpd": "LGPD",
+      "rights": "Todos os direitos reservados.",
+      "made_in": "Feito com 🌊 em Balneário Camboriú, SC"
+    }
+  },
+  "legal": {
+    "termos": {
+      "title": "Termos de uso",
+      "intro": "Texto placeholder — substitua pelo jurídico final.",
+      "p1": "1. Aceitação — Ao usar o Imerso, você aceita estes termos.",
+      "p2": "2. Serviço — Plataforma de tours virtuais 3D e gestão de conteúdo para imobiliárias e parceiros.",
+      "p3": "3. Conta — Acesso ao painel mediante credenciais fornecidas pela equipe Imerso.",
+      "p4": "4. Uso permitido — Utilização conforme contrato ou demonstração; proibido uso que viole lei ou terceiros.",
+      "p5": "5. Propriedade intelectual — Marca, layout e software pertencem ao Imerso ou licenciantes.",
+      "p6": "6. Limitação — O serviço é fornecido \"como está\"; em caso de indisponibilidade, medidas corretivas serão adotadas.",
+      "p7": "7. Alterações — Termos podem ser atualizados; uso continuado implica aceitação.",
+      "p8": "8. Foro — Comarca de Balneário Camboriú/SC."
+    },
+    "privacidade": {
+      "title": "Política de privacidade",
+      "intro": "Placeholder LGPD — revisão jurídica recomendada.",
+      "p1": "Dados coletados: nome, WhatsApp, e-mail, dados de uso e fingerprint anônimo para analytics.",
+      "p2": "Finalidades: orçamento, suporte, melhoria do produto e métricas agregadas.",
+      "p3": "Bases legais: consentimento, execução de contrato e legítimo interesse quando aplicável.",
+      "p4": "Compartilhamento: processadores como hospedagem (Supabase), storage (Cloudflare R2) e processamento 3D (Luma), sob contratos.",
+      "p5": "Segurança: boas práticas de acesso e criptografia em trânsito.",
+      "p6": "Retenção: pelo tempo necessário às finalidades ou exigência legal.",
+      "p7": "Direitos do titular: acesso, correção, eliminação, portabilidade etc. (LGPD art. 18).",
+      "p8": "Cookies: usamos cookies para consentimento e analytics conforme banner.",
+      "p9": "Contato: utilize os canais indicados no site para solicitações."
+    },
+    "lgpd": {
+      "title": "Direitos do titular (LGPD)",
+      "intro": "Art. 18 da Lei 13.709/2018 — resumo informativo.",
+      "r1": "Confirmação de tratamento e acesso aos dados.",
+      "r2": "Correção de dados incompletos ou inexatos.",
+      "r3": "Anonimização, bloqueio ou eliminação de dados desnecessários.",
+      "r4": "Portabilidade, observadas regulamentações.",
+      "r5": "Eliminação dos dados tratados com consentimento.",
+      "r6": "Informação sobre compartilhamentos.",
+      "r7": "Informação sobre negativa de consentimento.",
+      "r8": "Revisão de decisões automatizadas.",
+      "form_note": "Para exercer direitos, entre em contato pelos canais oficiais ou use o formulário abaixo.",
+      "form_name": "Nome",
+      "form_email": "E-mail",
+      "form_type": "Tipo de solicitação",
+      "form_desc": "Descrição",
+      "form_submit": "Abrir e-mail",
+      "opt_acesso": "Acesso aos dados",
+      "opt_correcao": "Correção",
+      "opt_eliminacao": "Eliminação",
+      "opt_portabilidade": "Portabilidade",
+      "opt_outro": "Outro"
+    }
+  },
+  "viewer": {
+    "loading": "Preparando seu tour 3D…",
+    "loading_sub": "Isso leva alguns segundos. Vale a pena.",
+    "lite_load_error": "Não foi possível carregar o preview rápido. Carregando tour completo…",
+    "detail_loading_badge": "Carregando detalhes…",
+    "share": "Compartilhar",
+    "fullscreen": "Tela cheia",
+    "info_button": "Informações",
+    "screenshot": "Capturar imagem",
+    "reset_view": "Posição inicial",
+    "minimap": {
+      "toggle": "Minimapa"
+    },
+    "cinematic": {
+      "play": "Tour automático",
+      "stop": "Parar tour"
+    },
+    "whatsapp_cta": "Falar com o corretor",
+    "whatsapp_prefill": "Olá! Vi seu imóvel \"{titulo}\" no tour 3D. Tenho interesse em saber mais.",
+    "quality": {
+      "label": "Qualidade",
+      "high": "Alta",
+      "medium": "Média",
+      "low": "Baixa"
+    },
+    "move_speed": {
+      "label": "Velocidade",
+      "slow": "Devagar",
+      "medium": "Normal",
+      "fast": "Rápido"
+    },
+    "share_dialog": {
+      "title": "Compartilhar tour",
+      "desc": "Copie o link e envie por WhatsApp, e-mail ou redes sociais.",
+      "copy": "Copiar",
+      "copied": "Copiado!",
+      "copy_fail": "Não foi possível copiar."
+    },
+    "info_panel": {
+      "bairro": "Bairro",
+      "area": "Área",
+      "quartos": "Quartos",
+      "modalidade": "Modalidade",
+      "status": {
+        "disponivel": "Disponível",
+        "reservado": "Reservado",
+        "vendido": "Vendido"
+      },
+      "tipo": {
+        "apartamento": "Apartamento",
+        "casa": "Casa",
+        "comercial": "Comercial",
+        "terreno": "Terreno",
+        "evento": "Evento"
+      },
+      "mod": {
+        "venda": "Venda",
+        "aluguel": "Aluguel",
+        "temporada": "Temporada"
+      }
+    },
+    "password_required": {
+      "title": "Tour privado",
+      "subtitle": "Digite a senha para acessar.",
+      "submit": "Acessar",
+      "error": "Senha incorreta."
+    },
+    "gallery": {
+      "title": "Tours",
+      "empty": "Nenhum tour disponível ainda.",
+      "open": "Abrir tour"
+    }
+  },
+  "admin": {
+    "login": {
+      "title": "Acesso ao painel",
+      "email": "E-mail",
+      "password": "Senha",
+      "submit": "Entrar",
+      "submitting": "Entrando...",
+      "back_home": "Voltar ao site",
+      "validation": "Informe e-mail e senha.",
+      "invalid_credentials": "E-mail ou senha incorretos.",
+      "forbidden": "Esta conta não tem acesso de super admin.",
+      "error_generic": "Não foi possível entrar. Tente novamente."
+    },
+    "sidebar": {
+      "aria": "Navegação do painel",
+      "section": "Menu",
+      "dashboard": "Dashboard",
+      "imobiliarias": "Imobiliárias",
+      "tours": "Tours",
+      "leads": "Leads",
+      "settings": "Configurações",
+      "soon": "Disponível em breve"
+    },
+    "topbar": {
+      "signed_in_as": "Conectado como",
+      "logout": "Sair",
+      "open_menu": "Abrir menu"
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "subtitle": "Visão geral do Imerso (dados reais na Sprint 9).",
+      "kpi_tours": "Total de tours",
+      "kpi_ready": "Tours prontos",
+      "kpi_views": "Views (30 dias)",
+      "kpi_whatsapp": "Cliques WhatsApp (30 dias)",
+      "mock_note": "Mock — Sprint 2"
+    },
+    "imobiliarias": {
+      "title": "Imobiliárias",
+      "subtitle": "Gerencie clientes e branding.",
+      "new": "Nova imobiliária",
+      "empty": "Nenhuma imobiliária cadastrada.",
+      "col_nome": "Nome",
+      "col_slug": "Slug",
+      "col_tours": "Tours",
+      "col_login": "Login",
+      "col_actions": "Ações",
+      "login_yes": "Com login",
+      "login_no": "Sem login",
+      "edit": "Editar",
+      "corretores": "Corretores",
+      "archive": "Arquivar",
+      "confirm_archive": "Arquivar imobiliária \"{nome}\"? Tours ficam ocultos até restaurar.",
+      "archived": "Imobiliária arquivada.",
+      "error_archive": "Não foi possível arquivar.",
+      "nova_title": "Nova imobiliária",
+      "nova_subtitle": "Slug em minúsculas, números e hífens (único).",
+      "edit_title": "Editar imobiliária",
+      "field_nome": "Nome",
+      "field_slug": "Slug",
+      "field_whatsapp": "WhatsApp principal",
+      "field_email": "E-mail de contato",
+      "field_cidade": "Cidade",
+      "field_estado": "UF",
+      "field_cor": "Cor primária",
+      "field_logo_url": "URL do logo",
+      "field_cnpj": "CNPJ",
+      "submit": "Salvar",
+      "saving": "Salvando...",
+      "cancel": "Cancelar",
+      "saved": "Imobiliária criada.",
+      "updated": "Dados atualizados.",
+      "error_save": "Não foi possível salvar.",
+      "back_list": "Voltar à lista"
+    },
+    "corretores": {
+      "title": "Corretores",
+      "back_imob": "Imobiliária",
+      "add": "Adicionar corretor",
+      "empty": "Nenhum corretor cadastrado.",
+      "col_nome": "Nome",
+      "col_whatsapp": "WhatsApp",
+      "col_ativo": "Ativo",
+      "col_actions": "Ações",
+      "ativo_yes": "Sim",
+      "ativo_no": "Não",
+      "edit": "Editar",
+      "deactivate": "Desativar",
+      "confirm_deactivate": "Desativar corretor \"{nome}\"?",
+      "deactivated": "Corretor desativado.",
+      "modal_new_title": "Novo corretor",
+      "modal_edit_title": "Editar corretor",
+      "modal_desc": "CRECI e e-mail são opcionais.",
+      "field_nome": "Nome",
+      "field_creci": "CRECI",
+      "field_whatsapp": "WhatsApp",
+      "field_email": "E-mail",
+      "field_foto": "URL da foto",
+      "save": "Salvar",
+      "saving": "Salvando...",
+      "cancel": "Cancelar",
+      "created": "Corretor criado.",
+      "updated": "Corretor atualizado.",
+      "error_save": "Não foi possível salvar."
+    },
+    "tours": {
+      "title": "Tours",
+      "subtitle": "Listagem e criação de tours (status draft até processamento).",
+      "new": "Novo tour",
+      "empty": "Nenhum tour encontrado com os filtros.",
+      "col_titulo": "Título",
+      "col_imob": "Imobiliária",
+      "col_corretor": "Corretor",
+      "col_status": "Status",
+      "col_actions": "Ações",
+      "edit": "Abrir",
+      "filter_status": "Status",
+      "filter_imob": "Imobiliária",
+      "filter_imob_all": "Todas",
+      "filter_search": "Busca",
+      "filter_search_ph": "Título…",
+      "filter_apply": "Aplicar",
+      "status": {
+        "all": "Todos",
+        "draft": "Rascunho",
+        "uploading": "Enviando",
+        "processing": "Processando",
+        "ready": "Pronto",
+        "failed": "Falhou",
+        "archived": "Arquivado"
+      },
+      "novo_title": "Novo tour",
+      "novo_subtitle": "Passos: imobiliária → dados do imóvel → privacidade e cobrança.",
+      "wizard_step1": "Imobiliária",
+      "wizard_step2": "Imóvel",
+      "wizard_step3": "Privacidade",
+      "wizard_no_imobs": "Cadastre uma imobiliária antes de criar tours.",
+      "field_imob": "Imobiliária",
+      "field_corretor": "Corretor",
+      "corretor_none": "Nenhum",
+      "field_titulo": "Título",
+      "field_slug": "Slug do tour",
+      "field_tipo": "Tipo",
+      "tipo": {
+        "apartamento": "Apartamento",
+        "casa": "Casa",
+        "comercial": "Comercial",
+        "terreno": "Terreno",
+        "evento": "Evento"
+      },
+      "field_bairro": "Bairro",
+      "field_area": "Área (m²)",
+      "field_quartos": "Quartos",
+      "field_valor": "Valor (R$)",
+      "field_modalidade": "Modalidade",
+      "modalidade_none": "—",
+      "mod": {
+        "venda": "Venda",
+        "aluguel": "Aluguel",
+        "temporada": "Temporada"
+      },
+      "field_desc": "Descrição",
+      "field_public": "Tour público",
+      "field_password": "Senha do tour",
+      "field_password_new": "Nova senha (opcional)",
+      "field_cinematic": "Cinematic Mode (Plus)",
+      "field_cobranca": "Cobrança cliente (BRL)",
+      "field_foto_capa": "URL foto de capa",
+      "cancel": "Cancelar",
+      "next": "Próximo",
+      "back": "Voltar",
+      "saving": "Salvando...",
+      "submit_create": "Criar tour",
+      "created": "Tour criado.",
+      "updated": "Tour atualizado.",
+      "error_save": "Não foi possível salvar.",
+      "error_no_imob": "Selecione uma imobiliária.",
+      "error_private_password": "Tour privado exige senha com pelo menos 4 caracteres.",
+      "detail_title": "Tour",
+      "tab_dados": "Dados",
+      "tab_midia": "Mídia",
+      "tab_links": "Links",
+      "submit": "Salvar alterações",
+      "midia_placeholder": "Gerencie o vídeo bruto e o processamento Luma.",
+      "links_intro": "Ferramentas do tour público.",
+      "link_hotspots": "Editar hotspots 3D",
+      "link_waypoints": "Cinematic (waypoints)",
+      "public_url": "URL pública (quando status = pronto e público)",
+      "hotspots": {
+        "page_title": "Hotspots do tour",
+        "page_subtitle": "Clique na cena para posicionar pins (máx. 15).",
+        "back_tour": "Voltar ao tour",
+        "hint": "Ative “Adicionar com clique”, clique no modelo 3D e preencha o cartão.",
+        "count": "{n} de {max} hotspots",
+        "need_ready": "O tour precisa estar pronto (status “ready”) e com splat publicado para editar aqui.",
+        "add_pick": "Adicionar com clique",
+        "cancel_pick": "Cancelar clique",
+        "pick_banner": "Clique no piso ou superfície do tour para definir a posição.",
+        "empty": "Nenhum hotspot ainda.",
+        "delete": "Remover",
+        "confirm_delete": "Excluir este hotspot?",
+        "dialog_title": "Novo hotspot",
+        "field_title": "Título",
+        "field_desc": "Descrição",
+        "field_icon": "Ícone",
+        "coords": "Coordenadas",
+        "save": "Salvar",
+        "cancel": "Cancelar",
+        "validation_title": "Informe o título.",
+        "saved": "Hotspot criado.",
+        "deleted": "Hotspot removido.",
+        "error_save": "Não foi possível salvar.",
+        "error_delete": "Não foi possível excluir.",
+        "no_viewer": "Sem splat para exibir."
+      },
+      "waypoints": {
+        "page_title": "Cinematic — waypoints",
+        "page_subtitle": "Capture a câmera em cada ponto; o player interpola entre waypoints.",
+        "back_tour": "Voltar ao tour",
+        "hint": "Posicione a câmera, depois use “Adicionar posição atual”. Ajuste a duração (ms) de cada trecho.",
+        "need_cinematic": "Ative o Cinematic Mode (Plus) no tour.",
+        "open_tour": "Abrir dados do tour",
+        "need_ready": "Tour precisa estar pronto e com splat para o editor.",
+        "add_from_camera": "Adicionar posição atual",
+        "empty": "Nenhum waypoint.",
+        "waypoint_label": "Ponto {n}",
+        "duration_ms": "Duração até o próximo (ms)",
+        "delete": "Remover",
+        "confirm_delete": "Excluir este waypoint?",
+        "saved": "Waypoint adicionado.",
+        "deleted": "Waypoint removido.",
+        "error_save": "Não foi possível salvar.",
+        "error_delete": "Não foi possível excluir.",
+        "no_viewer": "Sem splat para exibir."
+      },
+      "archive_tour": "Arquivar tour",
+      "confirm_archive_tour": "Arquivar este tour? Some da galeria pública.",
+      "archived_tour": "Tour arquivado.",
+      "upload_video": "Upload de vídeo",
+      "midia_upload_hint": "Envie o vídeo bruto para processamento na Luma (multipart R2).",
+      "upload": {
+        "page_title": "Upload de vídeo",
+        "title": "Vídeo do imóvel",
+        "subtitle": "Arraste um MP4/MOV/M4V ou clique para selecionar. Após o envio, o tour é enviado automaticamente para a Luma.",
+        "back_detail": "Voltar ao tour",
+        "drop": "Solte o vídeo aqui ou clique para escolher",
+        "types": "Formatos: MP4, MOV, M4V · limite no .env (NEXT_PUBLIC_MAX_VIDEO_SIZE_MB)",
+        "selected": "Arquivo",
+        "start": "Iniciar upload",
+        "cancel": "Cancelar envio",
+        "complete_video": "Upload concluído.",
+        "error_upload": "Falha no upload.",
+        "error_size": "Arquivo acima do limite configurado.",
+        "error_type": "Use apenas .mp4, .mov ou .m4v.",
+        "no_file": "Selecione um arquivo de vídeo.",
+        "auto_luma_note": "Ao concluir o upload, o sistema tenta enviar o vídeo para a Luma automaticamente.",
+        "luma_submitted": "Enviado para a Luma.",
+        "luma_submit_failed": "Vídeo salvo, mas o envio à Luma falhou. Use \"Atualizar status\" ou marque pronto manualmente.",
+        "luma_section": "Processamento Luma",
+        "luma_slug": "Slug da captura",
+        "check_status": "Atualizar status",
+        "status_label": "Status",
+        "status_failed": "Não foi possível consultar a Luma.",
+        "processing_hint": "O processamento pode levar minutos ou horas. Você pode fechar esta página e voltar depois.",
+        "luma_doc_hint": "TODO(founder): confira o endpoint vigente em https://docs.lumalabs.ai/ se o status não atualizar.",
+        "luma_ready": "Tour marcado como pronto (splat disponível).",
+        "luma_failed": "Processamento na Luma falhou.",
+        "mark_title": "Marcar pronto manualmente",
+        "mark_desc": "Cole a URL do arquivo .splat (ex.: link da Luma). O arquivo será copiado para o R2 e o tour ficará pronto.",
+        "mark_submit": "Baixar e publicar splat",
+        "mark_url_required": "Informe a URL do splat.",
+        "mark_ok": "Tour atualizado para pronto.",
+        "mark_failed": "Não foi possível importar o splat.",
+        "splat_upload": {
+          "section_title": "Upload de splat local",
+          "section_desc": "Arraste o arquivo gerado pelo pipeline local (.ply ou .ksplat) ou clique para selecionar.",
+          "drop": "Solte o .ply ou .ksplat aqui ou clique para escolher",
+          "types": "Formatos aceitos: .ply, .ksplat · limite máximo: 600 MB",
+          "selected": "Arquivo",
+          "start": "Iniciar upload",
+          "cancel": "Cancelar envio",
+          "complete": "Splat publicado! Tour marcado como pronto.",
+          "error_upload": "Falha no upload do splat.",
+          "error_type": "Use apenas arquivos .ply ou .ksplat.",
+          "error_size": "Arquivo acima do limite de 600 MB.",
+          "no_file": "Selecione um arquivo .ply ou .ksplat."
+        },
+        "tour_ready": "Este tour já está pronto. Ajuste dados e hotspots na aba do tour."
+      }
+    }
+  }
+}

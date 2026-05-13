@@ -1,0 +1,12 @@
+# SAM2 + Grounding DINO (GPU). Criar venv dedicado e instalar PyTorch CUDA antes, se necessário:
+#   https://pytorch.org/get-started/locally/
+#
+#   pip install -r scripts/local-gs/requirements_sam2.txt
+
+torch>=2.3.0
+torchvision>=0.18.0
+opencv-python>=4.8.0
+numpy
+Pillow
+git+https://github.com/facebookresearch/sam2.git
+git+https://github.com/IDEA-Research/GroundingDINO.git

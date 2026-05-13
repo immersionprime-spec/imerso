@@ -1,0 +1,2 @@
+    """Executa run-pipeline.ps1 com os params dados. Retorna returncode."""
+    cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(PIPELINE_PS1)]
