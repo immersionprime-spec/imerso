@@ -356,7 +356,7 @@ export function SplatViewer({
 
         const PITCH_LIMIT = Math.PI / 2.2;
         // Touch percorre ~3-4x mais pixels por gesto que o mouse.
-        const LOOK_SPEED = isCoarsePointer ? 0.001 : 0.003;
+        const LOOK_SPEED = isCoarsePointer ? 0.0025 : 0.003;
 
         let yaw = 0;
         let pitch = 0;
