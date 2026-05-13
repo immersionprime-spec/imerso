@@ -128,9 +128,21 @@ export function ToursTable({ rows, imobs, initialFilters }: ToursTableProps) {
                     <Badge variant={statusVariant(r.status)}>{r.status}</Badge>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Link href={`/painel/tours/${r.id}`} className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
-                      {t('edit')}
-                    </Link>
+                    <div className="flex items-center justify-end gap-2">
+                      {r.status === 'ready' && (
+                        <a
+                          href={`/${r.imobiliaria_slug}/${r.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
+                        >
+                          Ver tour
+                        </a>
+                      )}
+                      <Link href={`/painel/tours/${r.id}`} className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+                        {t('edit')}
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))
