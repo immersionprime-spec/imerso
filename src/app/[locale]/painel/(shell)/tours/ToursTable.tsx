@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useParams } from 'next/navigation';
 import { Link, useRouter } from '@/i18n/navigation';
 import { Button, buttonVariants } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -42,6 +43,7 @@ function statusVariant(s: string): React.ComponentProps<typeof Badge>['variant']
 export function ToursTable({ rows, imobs, initialFilters }: ToursTableProps) {
   const t = useTranslations('admin.tours');
   const router = useRouter();
+  const { locale } = useParams<{ locale: string }>();
   const [status, setStatus] = useState(initialFilters.status ?? 'all');
   const [imob, setImob] = useState(initialFilters.imob ?? '');
   const [q, setQ] = useState(initialFilters.q ?? '');
@@ -131,7 +133,7 @@ export function ToursTable({ rows, imobs, initialFilters }: ToursTableProps) {
                     <div className="flex items-center justify-end gap-2">
                       {r.status === 'ready' && (
                         <a
-                          href={`/${r.imobiliaria_slug}/${r.slug}`}
+                          href={`/${locale}/${r.imobiliaria_slug}/${r.slug}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
