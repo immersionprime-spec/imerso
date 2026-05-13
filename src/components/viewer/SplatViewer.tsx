@@ -355,7 +355,8 @@ export function SplatViewer({
           typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
         const PITCH_LIMIT = Math.PI / 2.2;
-        const LOOK_SPEED = 0.003;
+        // Touch percorre ~3-4x mais pixels por gesto que o mouse.
+        const LOOK_SPEED = isCoarsePointer ? 0.001 : 0.003;
 
         let yaw = 0;
         let pitch = 0;
@@ -436,6 +437,14 @@ export function SplatViewer({
         const onPointerDown = (e: PointerEvent) => {
           if (pickModeRef.current) return;
           if (!isCoarsePointer && e.button !== 0) return;
+          // No touch: ignora toques na metade esquerda (zona do joystick)
+          // para evitar conflito de pointerId entre joystick e look.
+          if (isCoarsePointer && canvasEl) {
+            const rect = canvasEl.getBoundingClientRect();
+            if (e.clientX - rect.left < rect.width * 0.5) return;
+          }
+          // Não sobrescreve um look já ativo com outro dedo
+          if (lastPointer !== null) return;
           lastPointer = { x: e.clientX, y: e.clientY, id: e.pointerId };
           try {
             canvasEl?.setPointerCapture(e.pointerId);
