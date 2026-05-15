@@ -20,6 +20,8 @@ export interface PublicTourPayload {
     has_cinematic_mode: boolean;
     camera_up_inverted: boolean;
     splat_rotation_deg: number;
+    camera_start_position: [number, number, number] | null;
+    camera_start_target: [number, number, number] | null;
     is_password_protected: boolean;
   };
   imobiliaria: {

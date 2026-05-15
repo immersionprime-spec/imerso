@@ -102,11 +102,34 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
     return () => document.removeEventListener('fullscreenchange', onFs);
   }, []);
 
-  const onReady = useCallback((viewerApi: SplatViewerAPI) => {
-    setApi(viewerApi);
-  }, []);
-
   const hasLite = Boolean(data.tour.splat_url_lite);
+
+  const onReady = useCallback(
+    (viewerApi: SplatViewerAPI) => {
+      setApi(viewerApi);
+      const p = data.tour.camera_start_position;
+      const tgt = data.tour.camera_start_target;
+      if (p && tgt) {
+        viewerApi.setCameraState({
+          position: p,
+          target: tgt,
+        });
+      }
+    },
+    [data.tour.camera_start_position, data.tour.camera_start_target]
+  );
+
+  /** Após lite -> full, o viewer refaz fit da câmera; volta ao POV salvo. */
+  useEffect(() => {
+    if (!hasLite || detailLoading) return;
+    const p = data.tour.camera_start_position;
+    const tgt = data.tour.camera_start_target;
+    if (!api || !p || !tgt) return;
+    api.setCameraState({
+      position: p,
+      target: tgt,
+    });
+  }, [hasLite, detailLoading, api, data.tour.camera_start_position, data.tour.camera_start_target]);
 
   const onProgress = useCallback(
     (p: number) => {

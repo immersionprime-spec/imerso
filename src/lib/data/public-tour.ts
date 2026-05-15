@@ -38,6 +38,11 @@ function parseCameraVec(json: Json | null): { x: number; y: number; z: number } 
   return { x, y, z };
 }
 
+function parseCameraTuple(json: Json | null): [number, number, number] | null {
+  const v = parseCameraVec(json);
+  return v ? [v.x, v.y, v.z] : null;
+}
+
 /** Server-only: loads tour for public viewer; enforces ready, not archived, access rules. */
 export async function fetchPublicTourPayload(opts: FetchOptions): Promise<
   | { ok: true; data: PublicTourPayload }
@@ -155,8 +160,8 @@ export async function fetchPublicTourPayload(opts: FetchOptions): Promise<
       has_cinematic_mode: Boolean(tourRow.has_cinematic_mode),
       camera_up_inverted: tourRow.camera_up_inverted !== false,
       splat_rotation_deg: tourRow.splat_rotation_deg ?? 0,
-      camera_start_position: parseCameraVec(tourRow.camera_start_position),
-      camera_start_target: parseCameraVec(tourRow.camera_start_target),
+      camera_start_position: parseCameraTuple(tourRow.camera_start_position),
+      camera_start_target: parseCameraTuple(tourRow.camera_start_target),
       is_password_protected: passwordProtected,
     },
     imobiliaria: {
