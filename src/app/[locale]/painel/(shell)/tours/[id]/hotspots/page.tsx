@@ -46,7 +46,7 @@ export default async function TourHotspotsPage({ params }: PageProps) {
     titulo: h.titulo,
     descricao: h.descricao,
     icone: h.icone,
-    ordem: h.ordem,
+    ordem: h.ordem ?? 0,
     posicao_x: Number(h.posicao_x),
     posicao_y: Number(h.posicao_y),
     posicao_z: Number(h.posicao_z),
