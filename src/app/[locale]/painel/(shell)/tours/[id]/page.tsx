@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { requireSuperAdmin } from '@/lib/auth/guards';
+import { tourSplatProxyUrl } from '@/lib/splat/tour-splat-url';
 import { TourDetailClient } from './TourDetailClient';
 
 type TourAdminRow = {
@@ -22,6 +23,7 @@ type TourAdminRow = {
   cobranca_cliente_brl: number | null;
   status: string;
   foto_capa_url: string | null;
+  splat_r2_key: string | null;
   splat_url: string | null;
 };
 
@@ -38,7 +40,7 @@ export default async function TourDetailPage({ params }: PageProps) {
   const { data: tourRaw } = await supabase
     .from('tours')
     .select(
-      'id, imobiliaria_id, corretor_id, slug, titulo, tipo, bairro, area_m2, quartos, valor, modalidade, descricao, is_public, has_cinematic_mode, cobranca_cliente_brl, status, foto_capa_url, splat_url'
+      'id, imobiliaria_id, corretor_id, slug, titulo, tipo, bairro, area_m2, quartos, valor, modalidade, descricao, is_public, has_cinematic_mode, cobranca_cliente_brl, status, foto_capa_url, splat_r2_key'
     )
     .eq('id', id)
     .maybeSingle();
@@ -70,7 +72,10 @@ export default async function TourDetailPage({ params }: PageProps) {
         <p className="mt-1 text-sm text-text-secondary">{tour.titulo}</p>
       </div>
       <TourDetailClient
-        tour={tour}
+        tour={{
+          ...tour,
+          splat_url: tourSplatProxyUrl(tour.id, tour.splat_r2_key),
+        }}
         imobiliariaSlug={imo?.slug ?? ''}
         imobiliariaNome={imo?.nome ?? ''}
         corretores={corretores ?? []}

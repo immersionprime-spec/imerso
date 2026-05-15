@@ -27,11 +27,7 @@ const PATCH_KEYS = [
   'cobranca_cliente_brl',
   'status',
   'status_message',
-  'splat_url',
   'splat_r2_key',
-  'luma_capture_slug',
-  'luma_cost_credits',
-  'luma_cost_usd',
 ] as const;
 
 export async function PUT(req: Request, { params }: RouteParams) {

@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { requireSuperAdmin } from '@/lib/auth/guards';
+import { tourSplatProxyUrl } from '@/lib/splat/tour-splat-url';
 import type { Database } from '@/types/database.types';
 import { HotspotsEditorClient } from './HotspotsEditorClient';
 
@@ -20,7 +21,7 @@ export default async function TourHotspotsPage({ params }: PageProps) {
 
   const { data: tourRaw } = await supabase
     .from('tours')
-    .select('id, titulo, splat_url, status, camera_up_inverted')
+    .select('id, titulo, splat_r2_key, status, camera_up_inverted')
     .eq('id', id)
     .maybeSingle();
 
@@ -29,7 +30,7 @@ export default async function TourHotspotsPage({ params }: PageProps) {
   const tour = tourRaw as {
     id: string;
     titulo: string;
-    splat_url: string | null;
+    splat_r2_key: string | null;
     status: string;
     camera_up_inverted: boolean | null;
   };
@@ -62,7 +63,7 @@ export default async function TourHotspotsPage({ params }: PageProps) {
       <HotspotsEditorClient
         tourId={tour.id}
         tourTitulo={tour.titulo}
-        splatUrl={tour.splat_url}
+        splatUrl={tourSplatProxyUrl(tour.id, tour.splat_r2_key)}
         cameraUpInverted={tour.camera_up_inverted !== false}
         tourStatus={tour.status}
         initialHotspots={hotspots}

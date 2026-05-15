@@ -158,39 +158,6 @@ export interface Database {
         };
         Relationships: [];
       };
-      luma_processing_log: {
-        Row: {
-          id: string;
-          tour_id: string | null;
-          luma_capture_slug: string | null;
-          status: string | null;
-          credits_used: number | null;
-          cost_usd: number | null;
-          raw_response: Json | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          tour_id?: string | null;
-          luma_capture_slug?: string | null;
-          status?: string | null;
-          credits_used?: number | null;
-          cost_usd?: number | null;
-          raw_response?: Json | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          tour_id?: string | null;
-          luma_capture_slug?: string | null;
-          status?: string | null;
-          credits_used?: number | null;
-          cost_usd?: number | null;
-          raw_response?: Json | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
       system_config: {
         Row: {
           key: string;
@@ -374,12 +341,9 @@ export interface Database {
           video_r2_key: string | null;
           video_size_bytes: number | null;
           video_uploaded_at: string | null;
-          luma_capture_slug: string | null;
           luma_status: string | null;
-          luma_submitted_at: string | null;
-          luma_completed_at: string | null;
           splat_r2_key: string | null;
-          splat_url: string | null;
+          finalized_at: string | null;
           splat_size_bytes: number | null;
           splat_r2_key_lite: string | null;
           splat_size_bytes_lite: number | null;
@@ -390,8 +354,8 @@ export interface Database {
           has_cinematic_mode: boolean;
           camera_up_inverted: boolean;
           splat_rotation_deg: number;
-          luma_cost_credits: number | null;
-          luma_cost_usd: number | null;
+          camera_start_position: Json | null;
+          camera_start_target: Json | null;
           cobranca_cliente_brl: number | null;
           margem_brl: number | null;
           created_at: string;
@@ -418,12 +382,9 @@ export interface Database {
           video_r2_key?: string | null;
           video_size_bytes?: number | null;
           video_uploaded_at?: string | null;
-          luma_capture_slug?: string | null;
           luma_status?: string | null;
-          luma_submitted_at?: string | null;
-          luma_completed_at?: string | null;
           splat_r2_key?: string | null;
-          splat_url?: string | null;
+          finalized_at?: string | null;
           splat_size_bytes?: number | null;
           splat_r2_key_lite?: string | null;
           splat_size_bytes_lite?: number | null;
@@ -434,8 +395,8 @@ export interface Database {
           has_cinematic_mode?: boolean;
           camera_up_inverted?: boolean;
           splat_rotation_deg?: number;
-          luma_cost_credits?: number | null;
-          luma_cost_usd?: number | null;
+          camera_start_position?: Json | null;
+          camera_start_target?: Json | null;
           cobranca_cliente_brl?: number | null;
           created_at?: string;
           updated_at?: string;
@@ -461,12 +422,9 @@ export interface Database {
           video_r2_key?: string | null;
           video_size_bytes?: number | null;
           video_uploaded_at?: string | null;
-          luma_capture_slug?: string | null;
           luma_status?: string | null;
-          luma_submitted_at?: string | null;
-          luma_completed_at?: string | null;
           splat_r2_key?: string | null;
-          splat_url?: string | null;
+          finalized_at?: string | null;
           splat_size_bytes?: number | null;
           splat_r2_key_lite?: string | null;
           splat_size_bytes_lite?: number | null;
@@ -477,8 +435,8 @@ export interface Database {
           has_cinematic_mode?: boolean;
           camera_up_inverted?: boolean;
           splat_rotation_deg?: number;
-          luma_cost_credits?: number | null;
-          luma_cost_usd?: number | null;
+          camera_start_position?: Json | null;
+          camera_start_target?: Json | null;
           cobranca_cliente_brl?: number | null;
           created_at?: string;
           updated_at?: string;

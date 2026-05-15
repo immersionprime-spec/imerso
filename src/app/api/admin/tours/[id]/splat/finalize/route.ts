@@ -6,6 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { requireSuperAdminApi, typedAdminSupabase } from '@/lib/auth/api-admin';
 import { jsonError, jsonOk } from '@/lib/api/errors';
 import { getR2, isR2Configured, r2PublicUrl } from '@/lib/r2/client';
+import { tourSplatProxyUrl } from '@/lib/splat/tour-splat-url';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Database } from '@/types/database.types';
 import { splatFinalizeSchema } from '@/lib/validation/tour-upload';
@@ -52,7 +53,6 @@ export async function POST(req: Request, { params }: RouteParams) {
   }
 
   const payload = parsed.data;
-  const costCredits = payload.costCredits;
 
   const { data: tour, error: tErr } = await supabase.from('tours').select('id').eq('id', tourId).maybeSingle();
   if (tErr || !tour) {
@@ -158,22 +158,19 @@ export async function POST(req: Request, { params }: RouteParams) {
     sizeBytes = total ? Number(total) : null;
   }
 
-  const publicUrl = r2PublicUrl(key);
   const now = new Date().toISOString();
 
   const { error: upErr } = await supabase
     .from('tours')
     .update({
       splat_r2_key: key,
-      splat_url: publicUrl,
       splat_size_bytes: sizeBytes,
       ...(liteKey
         ? { splat_r2_key_lite: liteKey, splat_size_bytes_lite: liteSizeBytes }
         : {}),
       status: 'ready',
-      luma_completed_at: now,
+      finalized_at: now,
       status_message: null,
-      ...(costCredits !== undefined ? { luma_cost_credits: costCredits } : {}),
     })
     .eq('id', tourId);
 
@@ -181,5 +178,6 @@ export async function POST(req: Request, { params }: RouteParams) {
     return jsonError('INTERNAL', upErr.message, 500);
   }
 
-  return jsonOk({ splatUrl: publicUrl, status: 'ready' as const });
+  const splatUrl = tourSplatProxyUrl(tourId, key) ?? r2PublicUrl(key);
+  return jsonOk({ splatUrl, status: 'ready' as const });
 }

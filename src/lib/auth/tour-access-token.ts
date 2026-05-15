@@ -1,11 +1,25 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 function getSecret(): string {
-  const s = process.env.TOUR_ACCESS_SECRET?.trim() || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!s) {
-    throw new Error('Set TOUR_ACCESS_SECRET or SUPABASE_SERVICE_ROLE_KEY for private tour cookies.');
+  const explicit = process.env.TOUR_ACCESS_SECRET?.trim();
+  if (explicit) return explicit;
+
+  // Em produção, TOUR_ACCESS_SECRET é obrigatória.
+  // Em desenvolvimento (NODE_ENV !== 'production'), aceita fallback para não travar setup.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      '[Imerso] TOUR_ACCESS_SECRET é obrigatória em produção. ' +
+        'Gere com: openssl rand -hex 32 e adicione às variáveis de ambiente da Vercel.'
+    );
   }
-  return s;
+
+  // Fallback apenas para desenvolvimento local — nunca use em produção.
+  const fallback = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (fallback) return fallback;
+
+  throw new Error(
+    '[Imerso] Configure TOUR_ACCESS_SECRET (ou SUPABASE_SERVICE_ROLE_KEY como fallback em dev) no .env.local'
+  );
 }
 
 /** HMAC-signed payload; cookie Max-Age 24h per public API spec. */

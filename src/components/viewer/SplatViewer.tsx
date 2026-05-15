@@ -409,7 +409,16 @@ export function SplatViewer({
           pointer-events: ${isCoarsePointer ? 'auto' : 'none'};
           touch-action: none;
         `;
-        containerRef.current!.appendChild(joystickZone);
+        if (containerRef.current && !containerRef.current.contains(joystickZone)) {
+          containerRef.current.appendChild(joystickZone);
+        }
+
+        // ============================================================
+        // ZOOM: scroll mouse (desktop) + pinch (touch)
+        // ============================================================
+        let zoomDelta = 0;
+        const pinchActivePointers = new Map<number, { x: number; y: number }>();
+        let pinchLastDistance: number | null = null;
 
         let joystickManager: JoystickManager | null = null;
         if (isCoarsePointer) {
@@ -472,11 +481,73 @@ export function SplatViewer({
           }
         };
 
+        const ZOOM_SCROLL_SPEED = 0.08;
+
+        const onWheel = (e: WheelEvent) => {
+          if (pickModeRef.current) return;
+          e.preventDefault();
+          let delta = e.deltaY;
+          if (e.deltaMode === 1) delta *= 16;
+          if (e.deltaMode === 2) delta *= 400;
+          const normalizedDelta = Math.max(-120, Math.min(120, delta));
+          zoomDelta += (normalizedDelta / 120) * ZOOM_SCROLL_SPEED;
+        };
+
+        const ZOOM_PINCH_SPEED = 0.003;
+
+        function getPinchDistance(
+          p1: { x: number; y: number },
+          p2: { x: number; y: number }
+        ): number {
+          const dx = p1.x - p2.x;
+          const dy = p1.y - p2.y;
+          return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        const onPinchPointerDown = (e: PointerEvent) => {
+          if (pickModeRef.current) return;
+          if (e.pointerType === 'mouse') return;
+          pinchActivePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (pinchActivePointers.size === 2) {
+            const pts = Array.from(pinchActivePointers.values());
+            pinchLastDistance = getPinchDistance(pts[0]!, pts[1]!);
+          }
+        };
+
+        const onPinchPointerMove = (e: PointerEvent) => {
+          if (pickModeRef.current) return;
+          if (!pinchActivePointers.has(e.pointerId)) return;
+          pinchActivePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+          if (pinchActivePointers.size === 2 && pinchLastDistance !== null) {
+            const pts = Array.from(pinchActivePointers.values());
+            const currentDistance = getPinchDistance(pts[0]!, pts[1]!);
+            const distanceDelta = currentDistance - pinchLastDistance;
+            zoomDelta -= distanceDelta * ZOOM_PINCH_SPEED;
+            pinchLastDistance = currentDistance;
+            if (lastPointer !== null) {
+              lastPointer = null;
+            }
+          }
+        };
+
+        const onPinchPointerUp = (e: PointerEvent) => {
+          pinchActivePointers.delete(e.pointerId);
+          if (pinchActivePointers.size < 2) {
+            pinchLastDistance = null;
+          }
+        };
+
         if (canvasEl) {
           canvasEl.addEventListener('pointerdown', onPointerDown);
           canvasEl.addEventListener('pointermove', onPointerMove);
           canvasEl.addEventListener('pointerup', onPointerUp);
           canvasEl.addEventListener('pointercancel', onPointerUp);
+          canvasEl.addEventListener('wheel', onWheel, { passive: false });
+          canvasEl.addEventListener('pointerdown', onPinchPointerDown);
+          canvasEl.addEventListener('pointermove', onPinchPointerMove);
+          canvasEl.addEventListener('pointerup', onPinchPointerUp);
+          canvasEl.addEventListener('pointercancel', onPinchPointerUp);
         }
 
         let keyCleanup: (() => void) | null = null;
@@ -502,6 +573,7 @@ export function SplatViewer({
 
         const tmpForward = new Vector3();
         const tmpRight = new Vector3();
+        const tmpZoomForward = new Vector3();
         // Quaternions reutilizáveis (sem alloc por frame)
         const tmpQuat = new Quaternion();    // base * yaw (intermediário)
         const tmpYawQ = new Quaternion();
@@ -588,6 +660,20 @@ export function SplatViewer({
               cam.position.z = clamp(cam.position.z, expandedBounds.min[2], expandedBounds.max[2]);
             }
           }
+
+          if (zoomDelta !== 0) {
+            const { expandedBounds, targetY } = cachedNav;
+            tmpZoomForward.set(0, 0, -1).applyQuaternion(cam.quaternion);
+            tmpZoomForward.y = 0;
+            if (tmpZoomForward.lengthSq() > 0.001) tmpZoomForward.normalize();
+            cam.position.addScaledVector(tmpZoomForward, -zoomDelta);
+            cam.position.y = targetY;
+            if (expandedBounds) {
+              cam.position.x = clamp(cam.position.x, expandedBounds.min[0], expandedBounds.max[0]);
+              cam.position.z = clamp(cam.position.z, expandedBounds.min[2], expandedBounds.max[2]);
+            }
+            zoomDelta = 0;
+          }
         }
         rafId = requestAnimationFrame(fpsLoop);
 
@@ -599,9 +685,16 @@ export function SplatViewer({
             canvasEl.removeEventListener('pointermove', onPointerMove);
             canvasEl.removeEventListener('pointerup', onPointerUp);
             canvasEl.removeEventListener('pointercancel', onPointerUp);
+            canvasEl.removeEventListener('wheel', onWheel);
+            canvasEl.removeEventListener('pointerdown', onPinchPointerDown);
+            canvasEl.removeEventListener('pointermove', onPinchPointerMove);
+            canvasEl.removeEventListener('pointerup', onPinchPointerUp);
+            canvasEl.removeEventListener('pointercancel', onPinchPointerUp);
           }
           joystickManager?.destroy();
-          joystickZone.remove();
+          if (joystickZone.parentNode) {
+            joystickZone.remove();
+          }
         };
         fpsCleanupRef.current = fpsCleanup;
 

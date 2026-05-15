@@ -5,7 +5,7 @@ import { trackWhatsappSchema } from '@/lib/validation/public';
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  const rl = rateLimit(`track-whatsapp:${ip}`, RATE_LIMITS.TRACK_WHATSAPP);
+  const rl = await rateLimit(`track-whatsapp:${ip}`, RATE_LIMITS.TRACK_WHATSAPP);
   if (!rl.ok) {
     return jsonError('RATE_LIMITED', 'Too many requests.', 429);
   }

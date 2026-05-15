@@ -3,6 +3,7 @@ import { requireSuperAdminApi, typedAdminSupabase } from '@/lib/auth/api-admin';
 import { jsonError, jsonOk } from '@/lib/api/errors';
 import { completeMultipart } from '@/lib/r2/multipart';
 import { isR2Configured, r2PublicUrl } from '@/lib/r2/client';
+import { tourSplatProxyUrl } from '@/lib/splat/tour-splat-url';
 
 export const maxDuration = 300;
 
@@ -66,17 +67,15 @@ export async function POST(req: Request, { params }: RouteParams) {
     return jsonError('INTERNAL', msg, 500);
   }
 
-  const splatUrl = r2PublicUrl(key);
   const now = new Date().toISOString();
 
   const { error: upErr } = await supabase
     .from('tours')
     .update({
       splat_r2_key: key,
-      splat_url: splatUrl,
       splat_size_bytes: sizeBytes,
       status: 'ready',
-      luma_completed_at: now,
+      finalized_at: now,
       status_message: null,
     })
     .eq('id', tourId);
@@ -85,5 +84,6 @@ export async function POST(req: Request, { params }: RouteParams) {
     return jsonError('INTERNAL', upErr.message, 500);
   }
 
+  const splatUrl = tourSplatProxyUrl(tourId, key) ?? r2PublicUrl(key);
   return jsonOk({ ok: true as const, splatUrl, status: 'ready' as const });
 }

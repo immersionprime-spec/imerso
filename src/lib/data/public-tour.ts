@@ -1,8 +1,9 @@
-// TODO(founder): splat_url no banco é legado; viewer usa /api/public/tours/[id]/splat/scene.<ext>. Considerar drop column em migration futura.
 // TODO(founder): clone tools/gs3d-source (v0.4.7) + npm install; rode pipeline e finalize com .ksplat; valide viewer (Network → splat/scene.ksplat).
 import { createAdminClient } from '@/lib/supabase/admin';
+import { tourSplatProxyUrl } from '@/lib/splat/tour-splat-url';
 import { verifyTourAccessToken, tourAccessCookieName } from '@/lib/auth/tour-access-token';
 import type { PublicTourPayload, TourTipo, Modalidade, StatusVenda } from '@/types/public-tour';
+import type { Json } from '@/types/database.types';
 
 type FetchOptions = {
   imobiliariaSlug: string;
@@ -27,6 +28,16 @@ function mapStatusVenda(raw: string | null): StatusVenda {
   return 'disponivel';
 }
 
+function parseCameraVec(json: Json | null): { x: number; y: number; z: number } | null {
+  if (!json || typeof json !== 'object' || Array.isArray(json)) return null;
+  const o = json as Record<string, unknown>;
+  const x = Number(o.x);
+  const y = Number(o.y);
+  const z = Number(o.z);
+  if (![x, y, z].every((n) => Number.isFinite(n))) return null;
+  return { x, y, z };
+}
+
 /** Server-only: loads tour for public viewer; enforces ready, not archived, access rules. */
 export async function fetchPublicTourPayload(opts: FetchOptions): Promise<
   | { ok: true; data: PublicTourPayload }
@@ -47,7 +58,7 @@ export async function fetchPublicTourPayload(opts: FetchOptions): Promise<
   const { data: tourRow, error: tourErr } = await supabase
     .from('tours')
     .select(
-      'id, slug, titulo, tipo, bairro, area_m2, quartos, valor, modalidade, status_venda, descricao, foto_capa_url, splat_r2_key, splat_r2_key_lite, has_cinematic_mode, camera_up_inverted, is_public, password_hash, status, archived_at, corretor_id, splat_rotation_deg'
+      'id, slug, titulo, tipo, bairro, area_m2, quartos, valor, modalidade, status_venda, descricao, foto_capa_url, splat_r2_key, splat_r2_key_lite, has_cinematic_mode, camera_up_inverted, is_public, password_hash, status, archived_at, corretor_id, splat_rotation_deg, camera_start_position, camera_start_target'
     )
     .eq('imobiliaria_id', imoRow.id)
     .eq('slug', opts.tourSlug)
@@ -78,18 +89,13 @@ export async function fetchPublicTourPayload(opts: FetchOptions): Promise<
   if (!tourRow.splat_r2_key?.trim()) {
     return { ok: false, code: 'NOT_FOUND' };
   }
-  // Segmento `scene.<ext>`: path precisa terminar em .ply | .ksplat | .splat (sceneFormatFromPath na lib).
-  // `splat/[[...ext]]` no App Router — não usar `splat.${ext}` num único segmento (não casa com a pasta `splat/`).
-  const splatKey = tourRow.splat_r2_key ?? '';
-  const splatExt = splatKey.split('.').pop()?.toLowerCase();
-  const safeExt =
-    splatExt === 'ksplat' || splatExt === 'splat' || splatExt === 'ply' ? splatExt : 'ply';
-  const splatUrl = `/api/public/tours/${tourRow.id}/splat/scene.${safeExt}`;
-  const liteKey = tourRow.splat_r2_key_lite?.trim();
-  const splatUrlLite =
-    liteKey && (liteKey.endsWith('.ksplat') || liteKey.endsWith('.ply') || liteKey.endsWith('.splat'))
-      ? `/api/public/tours/${tourRow.id}/splat/scene.${safeExt}?variant=lite`
-      : undefined;
+  const splatUrl = tourSplatProxyUrl(tourRow.id, tourRow.splat_r2_key);
+  if (!splatUrl) {
+    return { ok: false, code: 'NOT_FOUND' };
+  }
+  const splatUrlLite = tourRow.splat_r2_key_lite?.trim()
+    ? tourSplatProxyUrl(tourRow.id, tourRow.splat_r2_key_lite, 'lite')
+    : undefined;
 
   let corretor: PublicTourPayload['corretor'] = null;
   if (tourRow.corretor_id) {
@@ -149,6 +155,8 @@ export async function fetchPublicTourPayload(opts: FetchOptions): Promise<
       has_cinematic_mode: Boolean(tourRow.has_cinematic_mode),
       camera_up_inverted: tourRow.camera_up_inverted !== false,
       splat_rotation_deg: tourRow.splat_rotation_deg ?? 0,
+      camera_start_position: parseCameraVec(tourRow.camera_start_position),
+      camera_start_target: parseCameraVec(tourRow.camera_start_target),
       is_password_protected: passwordProtected,
     },
     imobiliaria: {

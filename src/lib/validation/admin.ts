@@ -83,11 +83,7 @@ export const updateTourSchema = z.object({
   cobranca_cliente_brl: z.coerce.number().nonnegative().nullable().optional(),
   status: z.enum(['draft', 'uploading', 'processing', 'ready', 'failed', 'archived']).optional(),
   status_message: z.string().max(2000).nullable().optional(),
-  splat_url: z.string().url().nullable().optional().or(z.literal('')),
   splat_r2_key: z.string().max(500).nullable().optional().or(z.literal('')),
-  luma_capture_slug: z.string().max(200).nullable().optional().or(z.literal('')),
-  luma_cost_credits: z.coerce.number().int().nullable().optional(),
-  luma_cost_usd: z.coerce.number().nullable().optional(),
 });
 
 const hotspotIcon = z.enum([
@@ -131,3 +127,8 @@ export const createWaypointSchema = z.object({
 });
 
 export const updateWaypointSchema = createWaypointSchema.partial();
+
+export const tourCameraStartSchema = z.object({
+  position: z.tuple([z.number(), z.number(), z.number()]),
+  target: z.tuple([z.number(), z.number(), z.number()]),
+});

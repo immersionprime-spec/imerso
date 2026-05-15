@@ -5,7 +5,7 @@ import { trackViewSchema } from '@/lib/validation/public';
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  const rl = rateLimit(`track-view:${ip}`, RATE_LIMITS.TRACK_VIEW);
+  const rl = await rateLimit(`track-view:${ip}`, RATE_LIMITS.TRACK_VIEW);
   if (!rl.ok) {
     return jsonError('RATE_LIMITED', 'Too many requests.', 429);
   }

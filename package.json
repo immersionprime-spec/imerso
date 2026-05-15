@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "format": "prettier --write .",
-    "gs:local": "powershell -ExecutionPolicy Bypass -File scripts/local-gs/run-pipeline.ps1"
+    "gs:local": "powershell -ExecutionPolicy Bypass -File scripts/local-gs/run-pipeline.ps1",
+    "db:apply:camera-start": "node scripts/apply-camera-start-migration.mjs",
+    "db:verify": "node scripts/verify-db-schema.mjs",
+    "db:fix:splat-lite-size": "node scripts/fix-splat-size-bytes-lite-column.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1045.0",
@@ -27,6 +30,8 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.105.4",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "@vercel/og": "^0.6.8",
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.1",
@@ -55,6 +60,7 @@
     "@types/three": "^0.184.1",
     "eslint": "^9.39.4",
     "eslint-config-next": "^15.1.0",
+    "pg": "^8.20.0",
     "postcss": "^8",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.6.14",

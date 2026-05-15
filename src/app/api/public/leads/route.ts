@@ -19,7 +19,7 @@ function founderWhatsAppDigits(): string | null {
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  const rl = rateLimit(`leads:${ip}`, RATE_LIMITS.LEADS);
+  const rl = await rateLimit(`leads:${ip}`, RATE_LIMITS.LEADS);
   if (!rl.ok) {
     return jsonError('RATE_LIMITED', 'Too many requests.', 429);
   }

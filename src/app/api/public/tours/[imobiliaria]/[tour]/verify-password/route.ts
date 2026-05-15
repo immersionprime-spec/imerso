@@ -10,7 +10,7 @@ type RouteParams = { params: Promise<{ imobiliaria: string; tour: string }> };
 export async function POST(req: Request, { params }: RouteParams) {
   const ip = getClientIp(req);
   const { imobiliaria, tour: tourSlug } = await params;
-  const rl = rateLimit(`verify:${ip}:${imobiliaria}:${tourSlug}`, RATE_LIMITS.VERIFY_PASSWORD);
+  const rl = await rateLimit(`verify:${ip}:${imobiliaria}:${tourSlug}`, RATE_LIMITS.VERIFY_PASSWORD);
   if (!rl.ok) {
     return jsonError('RATE_LIMITED', 'Too many attempts.', 429);
   }
