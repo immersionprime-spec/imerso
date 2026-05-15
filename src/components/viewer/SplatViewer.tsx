@@ -661,17 +661,45 @@ export function SplatViewer({
             }
           }
 
+          // ── ZOOM ORBITAL (scroll / pinch) ──────────────────────────────
+          // Afastar = câmera sobe em arco e recua (visão aérea).
+          // Aproximar = câmera desce em arco e avança (visão FPS).
+          // Ao parar, a câmera trava na nova altura — WASD continua nessa altura.
           if (zoomDelta !== 0) {
-            const { expandedBounds, targetY } = cachedNav;
+            const { expandedBounds } = cachedNav;
+            const bounds = boundsRef.current;
+
+            // Limites verticais: mín = 25% da altura do bbox, máx = topo + 50% da altura total
+            const yMin = bounds
+              ? bounds.min[1] + (bounds.max[1] - bounds.min[1]) * 0.25
+              : cam.position.y - 2;
+            const yMax = bounds
+              ? bounds.max[1] + (bounds.max[1] - bounds.min[1]) * 0.5
+              : cam.position.y + 6;
+
+            // Vetor forward da câmera projetado em XZ (direção horizontal do olhar)
             tmpZoomForward.set(0, 0, -1).applyQuaternion(cam.quaternion);
             tmpZoomForward.y = 0;
             if (tmpZoomForward.lengthSq() > 0.001) tmpZoomForward.normalize();
-            cam.position.addScaledVector(tmpZoomForward, -zoomDelta);
-            cam.position.y = targetY;
+
+            // zoomDelta > 0 = afastar → recua em XZ e sobe em Y
+            // zoomDelta < 0 = aproximar → avança em XZ e desce em Y
+            const ZOOM_ARC_RATIO = 0.6;
+            cam.position.addScaledVector(tmpZoomForward, zoomDelta);
+            cam.position.y += zoomDelta * ZOOM_ARC_RATIO * (cameraUpInverted ? -1 : 1);
+
+            // Clamp vertical
+            cam.position.y = clamp(cam.position.y, yMin, yMax);
+
+            // Clamp horizontal no bbox expandido
             if (expandedBounds) {
               cam.position.x = clamp(cam.position.x, expandedBounds.min[0], expandedBounds.max[0]);
               cam.position.z = clamp(cam.position.z, expandedBounds.min[2], expandedBounds.max[2]);
             }
+
+            // Trava a nova altura como targetY — WASD não força de volta à altura anterior
+            cachedNav = { ...cachedNav, targetY: cam.position.y };
+
             zoomDelta = 0;
           }
         }
