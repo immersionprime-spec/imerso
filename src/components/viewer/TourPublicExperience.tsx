@@ -15,6 +15,7 @@ import { ShareTourDialog } from './ShareTourDialog';
 import { HotspotMarkers } from './HotspotMarkers';
 import { MiniMap } from './MiniMap';
 import { CinematicPlayer } from './CinematicPlayer';
+import { ElevationSlider } from './ElevationSlider';
 
 interface TourPublicExperienceProps {
   data: PublicTourPayload;
@@ -188,6 +189,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
       <HotspotMarkers api={api} hotspots={data.hotspots} />
       <MiniMap api={api} hotspots={data.hotspots} open={minimapOpen} />
       {showCinematic ? <CinematicPlayer api={api} waypoints={data.waypoints} /> : null}
+      <ElevationSlider api={api} />
       <ViewerControls
         api={api}
         onInfo={() => setInfoOpen(true)}
