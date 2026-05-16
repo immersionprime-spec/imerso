@@ -379,8 +379,7 @@ export function SplatViewer({
         }
 
         // Pinch só ativa quando AMBOS os dedos estão na metade direita da tela.
-        // Joystick (metade esquerda) + dedo de rotação (metade direita) NÃO
-        // ativa pinch — são gestos independentes e não devem interferir.
+        // Joystick (esquerda) + dedo de rotação (direita) NÃO ativa pinch.
         const isRightHalf = (clientX: number): boolean => {
           if (!canvasEl) return true;
           const rect = canvasEl.getBoundingClientRect();
@@ -390,7 +389,7 @@ export function SplatViewer({
         const onPinchPointerDown = (e: PointerEvent) => {
           if (pickModeRef.current) return;
           if (e.pointerType === 'mouse') return;
-          if (!isRightHalf(e.clientX)) return; // ignora dedo no joystick
+          if (!isRightHalf(e.clientX)) return;
           pinchActivePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
           if (pinchActivePointers.size === 2) {
             const pts = Array.from(pinchActivePointers.values());
@@ -421,8 +420,7 @@ export function SplatViewer({
           canvasEl.addEventListener('pointercancel', onPointerUp);
           canvasEl.addEventListener('wheel', onWheel, { passive: false });
         }
-        // Pinch no window: captura dois dedos na metade direita.
-        // isRightHalf() garante que joystick+look não dispara pinch.
+        // Pinch no window: isRightHalf() garante que joystick+look não dispara pinch.
         window.addEventListener('pointerdown', onPinchPointerDown);
         window.addEventListener('pointermove', onPinchPointerMove);
         window.addEventListener('pointerup', onPinchPointerUp);
