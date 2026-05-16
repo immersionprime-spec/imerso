@@ -175,6 +175,7 @@ export function SplatViewer({
   const viewerRef = useRef<ViewerInstance>(null);
   const boundsRef = useRef<SceneBounds | null>(null);
   const fpsCleanupRef = useRef<(() => void) | null>(null);
+  const fpsOverlayRef = useRef<HTMLDivElement | null>(null);
   const pickModeRef = useRef(pickMode);
   const moveSpeedRef = useRef<number>(MOVE_SPEED_VALUES[moveSpeedLevel]);
   const [loading, setLoading] = useState(true);
@@ -197,13 +198,15 @@ export function SplatViewer({
         const { Viewer, RenderMode } = await loadSplatViewer();
         const quality = initialQuality ?? detectInitialQuality();
         const preset = QUALITY_PRESETS[quality];
+        const isCoarsePointer =
+          typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
         let viewer: ViewerInstance = new Viewer({
           rootElement: containerRef.current!,
           cameraUp: cameraUpInverted ? [0, -1, 0] : [0, 1, 0],
           initialCameraPosition: [0, 0, cameraUpInverted ? -5 : 5],
           initialCameraLookAt: [0, 0, 0],
           sphericalHarmonicsDegree: preset.sphericalHarmonicsDegree,
-          antialiased: preset.antialiased,
+          antialiased: isCoarsePointer ? false : preset.antialiased,
           renderMode: RenderMode.Always,
           gpuAcceleratedSort: false,
           enableSIMDInSort: false,
@@ -239,7 +242,7 @@ export function SplatViewer({
               initialCameraPosition: [0, 0, cameraUpInverted ? -5 : 5],
               initialCameraLookAt: [0, 0, 0],
               sphericalHarmonicsDegree: preset.sphericalHarmonicsDegree,
-              antialiased: preset.antialiased,
+              antialiased: isCoarsePointer ? false : preset.antialiased,
               renderMode: RenderMode.Always,
               gpuAcceleratedSort: false,
               enableSIMDInSort: false,
@@ -258,7 +261,12 @@ export function SplatViewer({
           });
           if (!mounted) return;
         }
-        if (viewer.renderer) viewer.renderer.setPixelRatio(preset.pixelRatio);
+        if (viewer.renderer) {
+          const dpr = isCoarsePointer
+            ? Math.min(preset.pixelRatio, 1.5)
+            : preset.pixelRatio;
+          viewer.renderer.setPixelRatio(dpr);
+        }
         let cachedNav: ReturnType<typeof navFromBounds>;
         const fitted = fitCameraToSplat(viewer, cameraUpInverted);
         if (fitted) {
@@ -275,8 +283,6 @@ export function SplatViewer({
         setViewerReady(true);
 
         const cam = viewer.camera as PerspectiveCamera;
-        const isCoarsePointer =
-          typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
         const PITCH_LIMIT = Math.PI / 2.2;
         const LOOK_SPEED = isCoarsePointer ? 0.0025 : 0.003;
@@ -446,8 +452,25 @@ export function SplatViewer({
         const worldUpAxis = new Vector3(0, cameraUpInverted ? -1 : 1, 0);
         if (cameraUpInverted) tmpBaseQ.set(1, 0, 0, 0);
 
+        // FPS OVERLAY — REMOVER APÓS DIAGNÓSTICO
+        let fpsFrameCount = 0;
+        let fpsLastTime = performance.now();
+        // FIM FPS OVERLAY
         let rafId = 0;
         function fpsLoop() {
+          // FPS OVERLAY — REMOVER APÓS DIAGNÓSTICO
+          fpsFrameCount++;
+          const now = performance.now();
+          if (now - fpsLastTime >= 500) {
+            const fps = Math.round((fpsFrameCount * 1000) / (now - fpsLastTime));
+            fpsFrameCount = 0;
+            fpsLastTime = now;
+            if (fpsOverlayRef.current) {
+              fpsOverlayRef.current.textContent = `${fps} fps`;
+              fpsOverlayRef.current.style.color = fps >= 50 ? '#00ff88' : fps >= 30 ? '#ffcc00' : '#ff4444';
+            }
+          }
+          // FIM FPS OVERLAY
           rafId = requestAnimationFrame(fpsLoop);
           if (!mounted || !viewerRef.current) return;
 
@@ -668,6 +691,27 @@ export function SplatViewer({
 
   return (
     <div className="relative h-full min-h-[50dvh] w-full md:min-h-dvh">
+      {/* FPS OVERLAY — REMOVER APÓS DIAGNÓSTICO */}
+      <div
+        ref={fpsOverlayRef}
+        style={{
+          position: 'absolute',
+          top: 12,
+          right: 12,
+          zIndex: 9999,
+          background: 'rgba(0,0,0,0.65)',
+          color: '#00ff88',
+          fontFamily: 'monospace',
+          fontSize: 18,
+          fontWeight: 'bold',
+          padding: '4px 10px',
+          borderRadius: 6,
+          pointerEvents: 'none',
+        }}
+      >
+        -- fps
+      </div>
+      {/* FIM FPS OVERLAY */}
       <div ref={containerRef} className="relative h-full w-full touch-none" />
       {loading ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/80">
