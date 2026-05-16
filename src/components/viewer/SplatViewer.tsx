@@ -197,16 +197,6 @@ export function SplatViewer({
         const { Viewer, RenderMode } = await loadSplatViewer();
         const quality = initialQuality ?? detectInitialQuality();
         const preset = QUALITY_PRESETS[quality];
-        const supportsGpuSort =
-          typeof navigator !== 'undefined' &&
-          (() => {
-            try {
-              const c = document.createElement('canvas');
-              return !!c.getContext('webgl2');
-            } catch {
-              return false;
-            }
-          })();
         let viewer: ViewerInstance = new Viewer({
           rootElement: containerRef.current!,
           cameraUp: cameraUpInverted ? [0, -1, 0] : [0, 1, 0],
@@ -215,8 +205,8 @@ export function SplatViewer({
           sphericalHarmonicsDegree: preset.sphericalHarmonicsDegree,
           antialiased: preset.antialiased,
           renderMode: RenderMode.Always,
-          gpuAcceleratedSort: supportsGpuSort,
-          enableSIMDInSort: true,
+          gpuAcceleratedSort: false,
+          enableSIMDInSort: false,
           useBuiltInControls: false,
         });
         viewerRef.current = viewer;
