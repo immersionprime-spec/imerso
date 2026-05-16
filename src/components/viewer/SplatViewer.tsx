@@ -187,8 +187,6 @@ function navFromBounds(bounds: SceneBounds | null, fallbackY: number) {
   }
   const expandedBounds = expandBboxXZ(bounds, 1.1);
   const targetY = bounds.min[1] + (bounds.max[1] - bounds.min[1]) * 0.4;
-  // Velocidade fixa de ~2 unidades/segundo a 60fps.
-  // Independente do tamanho do bbox — garante sensação consistente de caminhada.
   const moveSpeed = 0.033;
   return { expandedBounds, targetY, moveSpeed };
 }
@@ -447,10 +445,6 @@ export function SplatViewer({
         const onPointerDown = (e: PointerEvent) => {
           if (pickModeRef.current) return;
           if (!isCoarsePointer && e.button !== 0) return;
-          // Ignora toques que originam em controles de overlay (ElevationSlider, etc.).
-          // e.stopPropagation() em handlers React sintéticos NÃO para listeners nativos
-          // adicionados diretamente no canvas — por isso verificamos o target aqui.
-          if ((e.target as Element | null)?.closest('[data-elevation-slider]')) return;
           // No touch: ignora toques na metade esquerda (zona do joystick)
           // para evitar conflito de pointerId entre joystick e look.
           if (isCoarsePointer && canvasEl) {
@@ -662,9 +656,7 @@ export function SplatViewer({
               cam.position.z = clamp(cam.position.z, expandedBounds.min[2], expandedBounds.max[2]);
             }
 
-            // Trava a nova altura como targetY — WASD não força de volta à altura anterior
             cachedNav = { ...cachedNav, targetY: cam.position.y };
-
             zoomDelta = 0;
           }
         }
@@ -726,7 +718,6 @@ export function SplatViewer({
               const { yMin, yMax } = elevationYRange(boundsRef.current, cam.position.y);
               cam.position.y = clamp(cam.position.y, yMin, yMax);
             }
-            // Atualizar cachedNav.targetY para que o fpsLoop mantenha a nova altura
             cachedNav = { ...cachedNav, targetY: cam.position.y };
             if (ex) {
               cam.position.x = clamp(cam.position.x, ex.min[0], ex.max[0]);
@@ -788,7 +779,6 @@ export function SplatViewer({
             const { yMin, yMax } = elevationYRange(boundsRef.current, cam.position.y);
             const newY = clamp(y, yMin, yMax);
             cam.position.y = newY;
-            // Trava targetY — WASD/joystick mantém a nova altura após o slider
             cachedNav = { ...cachedNav, targetY: newY };
           },
           pickWorldAtPointer: (cx, cy) =>
