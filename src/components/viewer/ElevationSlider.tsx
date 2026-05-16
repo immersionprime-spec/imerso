@@ -1,24 +1,36 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { SplatViewerAPI, SceneBounds } from './SplatViewer';
+import type { SplatViewerAPI } from './SplatViewer';
 
 interface ElevationSliderProps {
   api: SplatViewerAPI | null;
 }
 
+function isTouchDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia('(pointer: coarse)').matches ||
+    (window.matchMedia('(hover: none)').matches && navigator.maxTouchPoints > 0)
+  );
+}
+
 /**
- * Slider vertical de altura da câmera — visível apenas em dispositivos touch.
+ * Slider vertical de altura da câmera — apenas em touch (mobile/tablet).
  *
- * Design: barra vertical fina na borda direita da tela (acima do botão WhatsApp),
- * com thumb arrastável. Arrastar para cima sobe a câmera; para baixo desce.
- * Não conflita com joystick (esquerda) nem com drag de rotação (qualquer área).
+ * CORREÇÃO APLICADA:
+ * O problema original era que e.stopPropagation() em handlers React sintéticos
+ * NÃO interrompe listeners nativos adicionados diretamente no canvas do Three.js
+ * via canvasEl.addEventListener(). Quando o usuário tocava o slider, o onPointerDown
+ * nativo do canvas também disparava, iniciando o drag de rotação simultâneo.
  *
- * Funcionamento interno:
- * - Lê os limites verticais do bbox via api.getSceneBounds()
- * - A cada frame de drag, calcula o novo Y proporcional à posição do thumb
- * - Chama setCameraState movendo apenas Y, mantendo X/Z e direção do olhar
- * - Atualiza o thumb para refletir a posição real da câmera (bidirecional)
+ * Solução: o elemento track recebe data-elevation-slider="true", e o SplatViewer
+ * verifica e.target.closest('[data-elevation-slider]') antes de processar o look.
+ * Isso quebra o conflito na origem, sem precisar de hacks de z-index ou setCapture
+ * no canvas.
+ *
+ * A lógica de setCameraElevation + cachedNav.targetY no SplatViewer garante que
+ * a altura se mantém após o usuário soltar o slider e andar com o joystick.
  */
 export function ElevationSlider({ api }: ElevationSliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -26,149 +38,173 @@ export function ElevationSlider({ api }: ElevationSliderProps) {
   const isDraggingRef = useRef(false);
   const rafRef = useRef<number>(0);
   const [visible, setVisible] = useState(false);
+  const [ariaValue, setAriaValue] = useState(50);
 
-  // Detecta touch apenas no cliente
   useEffect(() => {
-    setVisible(window.matchMedia('(pointer: coarse)').matches);
+    const mqCoarse = window.matchMedia('(pointer: coarse)');
+    const mqHover = window.matchMedia('(hover: none)');
+    const update = () => setVisible(isTouchDevice());
+    update();
+    mqCoarse.addEventListener('change', update);
+    mqHover.addEventListener('change', update);
+    return () => {
+      mqCoarse.removeEventListener('change', update);
+      mqHover.removeEventListener('change', update);
+    };
   }, []);
 
-  // Sincroniza o thumb com a posição real da câmera (polling leve a 10fps)
+  const applyThumbTop = useCallback((topPx: number) => {
+    if (thumbRef.current) {
+      thumbRef.current.style.top = `${topPx}px`;
+    }
+  }, []);
+
+  const yFromThumbTop = useCallback(
+    (clampedTop: number, maxTop: number, limits: { yMin: number; yMax: number }) => {
+      const ratio = maxTop > 0 ? 1 - clampedTop / maxTop : 0.5;
+      return limits.yMin + ratio * (limits.yMax - limits.yMin);
+    },
+    []
+  );
+
+  const thumbTopFromY = useCallback(
+    (camY: number, maxTop: number, limits: { yMin: number; yMax: number }) => {
+      const span = limits.yMax - limits.yMin;
+      const ratio = span > 0 ? Math.max(0, Math.min(1, (camY - limits.yMin) / span)) : 0.5;
+      return maxTop * (1 - ratio);
+    },
+    []
+  );
+
+  const applyElevationFromClientY = useCallback(
+    (clientY: number) => {
+      if (!api || !trackRef.current || !thumbRef.current) return;
+      const limits = api.getCameraElevationLimits();
+      if (!limits) return;
+
+      const track = trackRef.current;
+      const thumb = thumbRef.current;
+      const rect = track.getBoundingClientRect();
+      const thumbH = thumb.clientHeight;
+      const trackH = rect.height;
+      const maxTop = Math.max(0, trackH - thumbH);
+
+      const relY = clientY - rect.top - thumbH / 2;
+      const clampedTop = Math.max(0, Math.min(maxTop, relY));
+      applyThumbTop(clampedTop);
+
+      const newY = yFromThumbTop(clampedTop, maxTop, limits);
+      setAriaValue(maxTop > 0 ? Math.round((1 - clampedTop / maxTop) * 100) : 50);
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        // setCameraElevation atualiza cam.position.y E cachedNav.targetY no closure
+        // do SplatViewer — a altura persiste quando o usuário anda com o joystick.
+        api.setCameraElevation(newY);
+      });
+    },
+    [api, applyThumbTop, yFromThumbTop]
+  );
+
+  // Sincroniza thumb com a altura real (quando o usuário não está arrastando).
+  // Cobre zoom pinch, waypoints, reset câmera e qualquer mudança externa de Y.
   useEffect(() => {
     if (!visible || !api) return;
     let alive = true;
-    let last = -1;
+    let rafId = 0;
 
-    function sync() {
+    const sync = () => {
       if (!alive || !api) return;
-      if (!isDraggingRef.current) {
-        const bounds = api.getSceneBounds();
-        const state = api.getCameraState();
-        if (bounds && state && trackRef.current && thumbRef.current) {
-          const yMin = bounds.min[1] + (bounds.max[1] - bounds.min[1]) * 0.25;
-          const yMax = bounds.max[1] + (bounds.max[1] - bounds.min[1]) * 0.5;
-          const camY = state.position[1] ?? 0;
-          const ratio = Math.max(0, Math.min(1, (camY - yMin) / (yMax - yMin)));
-          // ratio 0 = yMin (baixo visual) → thumb no fundo da track
-          // ratio 1 = yMax (cima visual) → thumb no topo da track
-          const trackH = trackRef.current.clientHeight;
+      if (!isDraggingRef.current && trackRef.current && thumbRef.current) {
+        const limits = api.getCameraElevationLimits();
+        if (limits) {
           const thumbH = thumbRef.current.clientHeight;
-          const maxTop = trackH - thumbH;
-          // Inverter: alto Y (longe) = thumb no topo = top pequeno
-          const topPx = maxTop * (1 - ratio);
-          if (Math.abs(topPx - last) > 0.5) {
-            thumbRef.current.style.top = `${topPx}px`;
-            last = topPx;
-          }
+          const maxTop = Math.max(0, trackRef.current.clientHeight - thumbH);
+          const top = thumbTopFromY(limits.currentY, maxTop, limits);
+          applyThumbTop(top);
+          setAriaValue(maxTop > 0 ? Math.round((1 - top / maxTop) * 100) : 50);
         }
       }
-      window.setTimeout(sync, 100);
-    }
-    sync();
-    return () => { alive = false; };
-  }, [visible, api]);
+      rafId = requestAnimationFrame(sync);
+    };
+    rafId = requestAnimationFrame(sync);
+    return () => {
+      alive = false;
+      cancelAnimationFrame(rafId);
+    };
+  }, [visible, api, applyThumbTop, thumbTopFromY]);
 
-  const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!api || !trackRef.current || !thumbRef.current) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    isDraggingRef.current = true;
-  }, [api]);
-
-  const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDraggingRef.current || !api || !trackRef.current || !thumbRef.current) return;
-
-    const track = trackRef.current;
-    const thumb = thumbRef.current;
-    const rect = track.getBoundingClientRect();
-    const thumbH = thumb.clientHeight;
-    const trackH = rect.height;
-    const maxTop = trackH - thumbH;
-
-    // Posição relativa do dedo dentro da track (0 = topo, trackH = fundo)
-    const relY = e.clientY - rect.top - thumbH / 2;
-    const clampedTop = Math.max(0, Math.min(maxTop, relY));
-    thumb.style.top = `${clampedTop}px`;
-
-    // ratio: 0 = topo (thumb no topo = câmera alta), 1 = fundo (câmera baixa)
-    const ratio = 1 - clampedTop / maxTop;
-
-    // Calcular novo Y com base nos bounds
-    const bounds = api.getSceneBounds();
-    if (!bounds) return;
-    const yMin = bounds.min[1] + (bounds.max[1] - bounds.min[1]) * 0.25;
-    const yMax = bounds.max[1] + (bounds.max[1] - bounds.min[1]) * 0.5;
-    const newY = yMin + ratio * (yMax - yMin);
-
-    // Aplicar via setCameraState — mantém X, Z e direção do olhar intactos
-    cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => {
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
       if (!api) return;
-      const state = api.getCameraState();
-      if (!state) return;
-      const [px, , pz] = state.position;
-      // Recalcula target mantendo o mesmo yaw/pitch —
-      // apenas translada o ponto alvo no mesmo deltaY da câmera
-      const [tx, ty, tz] = state.target;
-      const deltaY = newY - (state.position[1] ?? 0);
-      api.setCameraState({
-        position: [px ?? 0, newY, pz ?? 0],
-        target: [tx ?? 0, (ty ?? 0) + deltaY, tz ?? 0],
-      });
-    });
-  }, [api]);
+      e.preventDefault();
+      // NÃO chamamos stopPropagation aqui — o SplatViewer já filtra pelo
+      // data-elevation-slider. stopPropagation React não para listeners nativos.
+      e.currentTarget.setPointerCapture(e.pointerId);
+      isDraggingRef.current = true;
+      applyElevationFromClientY(e.clientY);
+    },
+    [api, applyElevationFromClientY]
+  );
+
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!isDraggingRef.current) return;
+      e.preventDefault();
+      applyElevationFromClientY(e.clientY);
+    },
+    [applyElevationFromClientY]
+  );
 
   const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     isDraggingRef.current = false;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   if (!visible) return null;
 
   return (
-    <div
-      className="pointer-events-none fixed bottom-24 right-3 z-30 flex flex-col items-center gap-1"
-      aria-hidden="true"
-    >
-      {/* Label topo */}
-      <span className="text-[9px] font-medium leading-none text-white/60 select-none">▲</span>
-
-      {/* Track */}
+    <div className="pointer-events-none fixed bottom-28 right-3 z-40 flex flex-col items-center gap-1 sm:right-4">
+      <span className="select-none text-[9px] font-medium leading-none text-white/60">▲</span>
       <div
         ref={trackRef}
-        className="pointer-events-auto relative flex items-center justify-center"
-        style={{ width: 36, height: 140 }}
+        // data-elevation-slider é lido pelo onPointerDown nativo do canvas no SplatViewer
+        // para evitar que toques no slider iniciem o drag de rotação da câmera.
+        data-elevation-slider="true"
+        className="pointer-events-auto relative flex touch-none select-none items-center justify-center rounded-full border border-border-strong bg-surface/70 backdrop-blur-md"
+        style={{ width: 40, height: 148 }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        role="slider"
+        aria-label="Altura da câmera"
+        aria-orientation="vertical"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={ariaValue}
       >
-        {/* Trilho de fundo */}
+        {/* trilho central */}
         <div
-          className="absolute inset-x-0 mx-auto rounded-full"
-          style={{
-            width: 4,
-            top: 0,
-            bottom: 0,
-            background: 'rgba(255,255,255,0.18)',
-          }}
+          className="absolute inset-x-0 mx-auto rounded-full bg-white/20"
+          style={{ width: 4, top: 8, bottom: 8 }}
         />
-        {/* Thumb */}
+        {/* thumb */}
         <div
           ref={thumbRef}
-          className="absolute left-1/2 -translate-x-1/2 rounded-full shadow-md"
+          className="absolute left-1/2 -translate-x-1/2 rounded-full border-2 border-white/50 bg-white/90 shadow-md-dark"
           style={{
             width: 28,
             height: 28,
-            top: 56, // posição inicial: meio da track
-            background: 'rgba(255,255,255,0.85)',
-            border: '2px solid rgba(255,255,255,0.5)',
-            cursor: 'grab',
+            top: 60,
             touchAction: 'none',
           }}
         />
       </div>
-
-      {/* Label fundo */}
-      <span className="text-[9px] font-medium leading-none text-white/60 select-none">▼</span>
+      <span className="select-none text-[9px] font-medium leading-none text-white/60">▼</span>
     </div>
   );
 }

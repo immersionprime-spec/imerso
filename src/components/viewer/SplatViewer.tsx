@@ -68,6 +68,10 @@ export interface SplatViewerAPI {
     z: number
   ) => { sx: number; sy: number; visible: boolean } | null;
   getSceneBounds: () => SceneBounds | null;
+  /** Limites verticais do zoom orbital (mesmos do scroll no desktop). */
+  getCameraElevationLimits: () => { yMin: number; yMax: number; currentY: number } | null;
+  /** Altera só a altura Y; mantém yaw/pitch e atualiza targetY do loop FPS. */
+  setCameraElevation: (y: number) => void;
   pickWorldAtPointer: (clientX: number, clientY: number) => [number, number, number] | null;
 }
 
@@ -187,6 +191,18 @@ function navFromBounds(bounds: SceneBounds | null, fallbackY: number) {
   // Independente do tamanho do bbox — garante sensação consistente de caminhada.
   const moveSpeed = 0.033;
   return { expandedBounds, targetY, moveSpeed };
+}
+
+/** Faixa vertical usada pelo zoom (scroll/pinch) e pelo slider de elevação em touch. */
+function elevationYRange(bounds: SceneBounds | null, fallbackY: number) {
+  if (!bounds) {
+    return { yMin: fallbackY - 2, yMax: fallbackY + 6 };
+  }
+  const span = bounds.max[1] - bounds.min[1];
+  return {
+    yMin: bounds.min[1] + span * 0.25,
+    yMax: bounds.max[1] + span * 0.5,
+  };
 }
 
 export function SplatViewer({
@@ -347,15 +363,10 @@ export function SplatViewer({
         // ========================================
         // SISTEMA DE CONTROLES FPS CUSTOMIZADO
         // ========================================
-        // Substitui OrbitControls (desligado via useBuiltInControls: false).
-        // Altura fixa tipo "olho humano", clamp XZ no bbox expandido,
-        // pitch limitado para não virar de cabeça pra baixo.
-
         const isCoarsePointer =
           typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
         const PITCH_LIMIT = Math.PI / 2.2;
-        // Touch percorre ~3-4x mais pixels por gesto que o mouse.
         const LOOK_SPEED = isCoarsePointer ? 0.0025 : 0.003;
 
         let yaw = 0;
@@ -367,23 +378,13 @@ export function SplatViewer({
         const nav0 = navFromBounds(b0, cam.position.y);
         console.log('[FPS] bbox:', b0, '| moveSpeed:', nav0.moveSpeed, '| targetY:', nav0.targetY, '| cameraUpInverted:', cameraUpInverted);
 
-        // Pose inicial "dentro do splat" — não usa o quaternion vindo de fitCameraToSplat
-        // (que posiciona a câmera FORA do splat em modo maquete, inadequado pra FPS).
-        //
-        // Posiciona a câmera no centro horizontal do bbox, na altura olho humano,
-        // e calcula yaw apontando pra um dos eixos curtos do bbox (geralmente o "fundo"
-        // do ambiente). Isso garante que o usuário começa vendo a cena, não o vazio.
         if (b0) {
           const centerX = (b0.min[0] + b0.max[0]) / 2;
           const centerZ = (b0.min[2] + b0.max[2]) / 2;
           cam.position.set(centerX, nav0.targetY, centerZ);
-          // Olhar pra um dos eixos do bbox. Em cenas com cameraUpInverted (Y invertido
-          // visualmente), Math.atan2(0, 1) = 0 → câmera apontando pra +Z, o que costuma
-          // estar alinhado com a captura original (operador entrou no ambiente).
           yaw = (-splatRotationDeg * Math.PI) / 180;
           pitch = 0;
         } else {
-          // Sem bbox (cena vazia ou erro): aplica só o Y-clamp ao que veio do fitted
           cam.position.y = nav0.targetY;
           yaw = (-splatRotationDeg * Math.PI) / 180;
           pitch = 0;
@@ -446,6 +447,10 @@ export function SplatViewer({
         const onPointerDown = (e: PointerEvent) => {
           if (pickModeRef.current) return;
           if (!isCoarsePointer && e.button !== 0) return;
+          // Ignora toques que originam em controles de overlay (ElevationSlider, etc.).
+          // e.stopPropagation() em handlers React sintéticos NÃO para listeners nativos
+          // adicionados diretamente no canvas — por isso verificamos o target aqui.
+          if ((e.target as Element | null)?.closest('[data-elevation-slider]')) return;
           // No touch: ignora toques na metade esquerda (zona do joystick)
           // para evitar conflito de pointerId entre joystick e look.
           if (isCoarsePointer && canvasEl) {
@@ -574,23 +579,16 @@ export function SplatViewer({
         const tmpForward = new Vector3();
         const tmpRight = new Vector3();
         const tmpZoomForward = new Vector3();
-        // Quaternions reutilizáveis (sem alloc por frame)
-        const tmpQuat = new Quaternion();    // base * yaw (intermediário)
+        const tmpQuat = new Quaternion();
         const tmpYawQ = new Quaternion();
         const tmpPitchQ = new Quaternion();
-        const tmpBaseQ = new Quaternion();   // orientação inicial da cena
+        const tmpBaseQ = new Quaternion();
         const tmpRightVec = new Vector3();
-        // Eixo "cima" do mundo para cálculo do yaw
         const worldUpAxis = new Vector3(0, cameraUpInverted ? -1 : 1, 0);
-        // Quaternion base: R_x(180°) para Y-invertido (câmera aponta +Z, up=-Y).
-        // Sem isso, yaw=0/pitch=0 gera identidade → câmera aponta -Z → cena fica atrás.
         if (cameraUpInverted) {
-          // R_x(π) = Quaternion(x=1, y=0, z=0, w=0)
           tmpBaseQ.set(1, 0, 0, 0);
         }
 
-        // Cache do nav — recalculado só quando o bbox muda (swap lite→full),
-        // não por frame. Elimina alocação desnecessária no hot path do loop.
         let rafId = 0;
         function fpsLoop() {
           rafId = requestAnimationFrame(fpsLoop);
@@ -613,43 +611,26 @@ export function SplatViewer({
             }
           }
 
-          // Reconstrói quaternion apenas quando yaw ou pitch mudaram.
-          // Evita 6 operações matriciais por frame quando o usuário só anda sem olhar.
           if (yaw !== lastYaw || pitch !== lastPitch) {
             lastYaw = yaw;
             lastPitch = pitch;
-            // Construção correta do quaternion FPS (sem Euler):
-            // 1. base   = orientação inicial da cena (R_x(180°) para Y-invertido)
-            // 2. yaw    = rotação ao redor do worldUp (virar esq/dir)
-            // 3. pitch  = rotação ao redor do right local (inclinar cima/baixo)
-            // Ordem: Q = pitchQ * (yawQ * baseQ)
             tmpYawQ.setFromAxisAngle(worldUpAxis, yaw);
-            // base + yaw juntos
             tmpQuat.multiplyQuaternions(tmpYawQ, tmpBaseQ);
-            // right após base+yaw (para pitch girar ao redor do eixo correto)
             tmpRightVec.set(1, 0, 0).applyQuaternion(tmpQuat);
-            // pitch ao redor do right local
             tmpPitchQ.setFromAxisAngle(tmpRightVec, pitch);
-            // quaternion final
             cam.quaternion.multiplyQuaternions(tmpPitchQ, tmpQuat);
             cam.updateMatrixWorld();
           }
 
-          // Movimento: forward/right extraídos do quaternion real da câmera.
-          // Isso garante que WASD sempre corresponda à direção visual percebida,
-          // sem bugs de sinal por inversão de eixos.
           if (moveInput.x !== 0 || moveInput.z !== 0) {
-            // forward: local -Z da câmera projetado em XZ
             tmpForward.set(0, 0, -1).applyQuaternion(cam.quaternion);
             tmpForward.y = 0;
             if (tmpForward.lengthSq() > 0.001) tmpForward.normalize();
 
-            // right: local +X da câmera projetado em XZ
             tmpRight.set(1, 0, 0).applyQuaternion(cam.quaternion);
             tmpRight.y = 0;
             if (tmpRight.lengthSq() > 0.001) tmpRight.normalize();
 
-            // W/S = frente/trás (mz=-1 para W); A/D = strafe esquerda/direita
             const { expandedBounds, targetY } = cachedNav;
             const moveSpeed = moveSpeedRef.current;
             cam.position.addScaledVector(tmpForward, -moveInput.z * moveSpeed);
@@ -662,36 +643,20 @@ export function SplatViewer({
           }
 
           // ── ZOOM ORBITAL (scroll / pinch) ──────────────────────────────
-          // Afastar = câmera sobe em arco e recua (visão aérea).
-          // Aproximar = câmera desce em arco e avança (visão FPS).
-          // Ao parar, a câmera trava na nova altura — WASD continua nessa altura.
           if (zoomDelta !== 0) {
             const { expandedBounds } = cachedNav;
-            const bounds = boundsRef.current;
+            const { yMin, yMax } = elevationYRange(boundsRef.current, cam.position.y);
 
-            // Limites verticais: mín = 25% da altura do bbox, máx = topo + 50% da altura total
-            const yMin = bounds
-              ? bounds.min[1] + (bounds.max[1] - bounds.min[1]) * 0.25
-              : cam.position.y - 2;
-            const yMax = bounds
-              ? bounds.max[1] + (bounds.max[1] - bounds.min[1]) * 0.5
-              : cam.position.y + 6;
-
-            // Vetor forward da câmera projetado em XZ (direção horizontal do olhar)
             tmpZoomForward.set(0, 0, -1).applyQuaternion(cam.quaternion);
             tmpZoomForward.y = 0;
             if (tmpZoomForward.lengthSq() > 0.001) tmpZoomForward.normalize();
 
-            // zoomDelta > 0 = afastar → recua em XZ e sobe em Y
-            // zoomDelta < 0 = aproximar → avança em XZ e desce em Y
             const ZOOM_ARC_RATIO = 0.6;
             cam.position.addScaledVector(tmpZoomForward, zoomDelta);
             cam.position.y += zoomDelta * ZOOM_ARC_RATIO * (cameraUpInverted ? -1 : 1);
 
-            // Clamp vertical
             cam.position.y = clamp(cam.position.y, yMin, yMax);
 
-            // Clamp horizontal no bbox expandido
             if (expandedBounds) {
               cam.position.x = clamp(cam.position.x, expandedBounds.min[0], expandedBounds.max[0]);
               cam.position.z = clamp(cam.position.z, expandedBounds.min[2], expandedBounds.max[2]);
@@ -757,13 +722,8 @@ export function SplatViewer({
               cam.position.y
             );
             cam.position.fromArray(state.position);
-            // NÃO forçar cam.position.y = ty aqui — quem chama (ElevationSlider,
-            // zoom orbital, camera_start_position) já calcula o Y correto.
-            // Apenas clamp vertical para não sair dos limites da cena.
             if (boundsRef.current) {
-              const b = boundsRef.current;
-              const yMin = b.min[1] + (b.max[1] - b.min[1]) * 0.1;
-              const yMax = b.max[1] + (b.max[1] - b.min[1]) * 0.6;
+              const { yMin, yMax } = elevationYRange(boundsRef.current, cam.position.y);
               cam.position.y = clamp(cam.position.y, yMin, yMax);
             }
             // Atualizar cachedNav.targetY para que o fpsLoop mantenha a nova altura
@@ -779,10 +739,7 @@ export function SplatViewer({
             const dy = state.target[1] - cy;
             const dz = state.target[2] - cz;
             const horizLen = Math.sqrt(dx * dx + dz * dz);
-            // Câmera Y-invertida: forward=+Z em yaw=0. Y normal: forward=-Z em yaw=0.
-            // atan2(-dx, dz) para invertido; atan2(-dx, -dz) para normal.
             yaw = Math.atan2(-dx, cameraUpInverted ? dz : -dz);
-            // Pitch positivo = olhar pra cima. Em Y-invertido, "cima" = -Y (dy negativo).
             pitch = clamp(
               Math.atan2(cameraUpInverted ? -dy : dy, horizLen),
               -PITCH_LIMIT,
@@ -821,11 +778,25 @@ export function SplatViewer({
             return { sx, sy, visible };
           },
           getSceneBounds: () => boundsRef.current,
+          getCameraElevationLimits: () => {
+            const bounds = boundsRef.current;
+            if (!bounds) return null;
+            const { yMin, yMax } = elevationYRange(bounds, cam.position.y);
+            return { yMin, yMax, currentY: cam.position.y };
+          },
+          setCameraElevation: (y) => {
+            const { yMin, yMax } = elevationYRange(boundsRef.current, cam.position.y);
+            const newY = clamp(y, yMin, yMax);
+            cam.position.y = newY;
+            // Trava targetY — WASD/joystick mantém a nova altura após o slider
+            cachedNav = { ...cachedNav, targetY: newY };
+          },
           pickWorldAtPointer: (cx, cy) =>
             pickWorldFromViewer(viewer, cx, cy, boundsRef.current),
         };
 
         callbacksRef.current.onReady?.(api);
+
         if (liteLoadedOk) {
           callbacksRef.current.onLiteReady?.();
           void (async () => {
