@@ -456,10 +456,8 @@ export function SplatViewer({
         let fpsFrameCount = 0;
         let fpsLastTime = performance.now();
         // FIM FPS OVERLAY
-        let rafFrameCount = 0;
         let rafId = 0;
         function fpsLoop() {
-          rafFrameCount++;
           // FPS OVERLAY — REMOVER APÓS DIAGNÓSTICO
           fpsFrameCount++;
           const now = performance.now();
@@ -487,8 +485,7 @@ export function SplatViewer({
             else { moveInput.x = 0; moveInput.z = 0; }
           }
 
-          const shouldUpdateRotation = !isCoarsePointer || (rafFrameCount % 2 === 0);
-          if (shouldUpdateRotation && (yaw !== lastYaw || pitch !== lastPitch)) {
+          if (yaw !== lastYaw || pitch !== lastPitch) {
             lastYaw = yaw; lastPitch = pitch;
             tmpYawQ.setFromAxisAngle(worldUpAxis, yaw);
             tmpQuat.multiplyQuaternions(tmpYawQ, tmpBaseQ);
