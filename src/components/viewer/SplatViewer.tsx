@@ -752,12 +752,22 @@ export function SplatViewer({
             };
           },
           setCameraState: (state) => {
-            const { expandedBounds: ex, targetY: ty } = navFromBounds(
+            const { expandedBounds: ex } = navFromBounds(
               boundsRef.current,
               cam.position.y
             );
             cam.position.fromArray(state.position);
-            cam.position.y = ty;
+            // NÃO forçar cam.position.y = ty aqui — quem chama (ElevationSlider,
+            // zoom orbital, camera_start_position) já calcula o Y correto.
+            // Apenas clamp vertical para não sair dos limites da cena.
+            if (boundsRef.current) {
+              const b = boundsRef.current;
+              const yMin = b.min[1] + (b.max[1] - b.min[1]) * 0.1;
+              const yMax = b.max[1] + (b.max[1] - b.min[1]) * 0.6;
+              cam.position.y = clamp(cam.position.y, yMin, yMax);
+            }
+            // Atualizar cachedNav.targetY para que o fpsLoop mantenha a nova altura
+            cachedNav = { ...cachedNav, targetY: cam.position.y };
             if (ex) {
               cam.position.x = clamp(cam.position.x, ex.min[0], ex.max[0]);
               cam.position.z = clamp(cam.position.z, ex.min[2], ex.max[2]);

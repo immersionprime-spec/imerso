@@ -98,15 +98,16 @@ export function ElevationSlider({ api }: ElevationSliderProps) {
     const yMax = bounds.max[1] + (bounds.max[1] - bounds.min[1]) * 0.5;
     const newY = yMin + ratio * (yMax - yMin);
 
-    // Aplicar via setCameraState — mantém X, Z e direção do olhar
+    // Aplicar via setCameraState — mantém X, Z e direção do olhar intactos
     cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
       if (!api) return;
       const state = api.getCameraState();
       if (!state) return;
       const [px, , pz] = state.position;
+      // Recalcula target mantendo o mesmo yaw/pitch —
+      // apenas translada o ponto alvo no mesmo deltaY da câmera
       const [tx, ty, tz] = state.target;
-      // Move o target proporcionalmente para manter o olhar coerente
       const deltaY = newY - (state.position[1] ?? 0);
       api.setCameraState({
         position: [px ?? 0, newY, pz ?? 0],
