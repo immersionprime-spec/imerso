@@ -241,8 +241,8 @@ export function SplatViewer({
               sphericalHarmonicsDegree: preset.sphericalHarmonicsDegree,
               antialiased: preset.antialiased,
               renderMode: RenderMode.Always,
-              gpuAcceleratedSort: supportsGpuSort,
-              enableSIMDInSort: true,
+              gpuAcceleratedSort: false,
+              enableSIMDInSort: false,
               useBuiltInControls: false,
             });
             viewerRef.current = viewer;
