@@ -27,12 +27,14 @@ export const QUALITY_PRESETS: Record<QualityLevel, QualityPreset> = {
 };
 
 export function detectInitialQuality(): QualityLevel {
-  if (typeof window === 'undefined') return 'high';
-  const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+  if (typeof window === 'undefined') return 'medium';
+  const ua = navigator.userAgent;
+  const isTablet = /iPad/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua));
+  const isMobile = /Android.*Mobile|iPhone/i.test(ua);
   const memGB = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
-  // Desktop: sempre high (SH=2, antialiased, pixelRatio cap 2).
-  // Mobile fraco: low. Mobile normal: medium.
-  if (!isMobile) return 'high';
-  if (memGB <= 4) return 'low';
+
+  if (!isMobile && !isTablet) return 'high';
+  if (isTablet) return 'medium';
+  if (isMobile && memGB <= 2) return 'low';
   return 'medium';
 }

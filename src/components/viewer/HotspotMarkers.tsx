@@ -51,19 +51,24 @@ export function HotspotMarkers({ api, hotspots }: HotspotMarkersProps) {
     const viewerApi = api;
 
     let rafId = 0;
+    let lastTick = 0;
+    const HOTSPOT_INTERVAL = 1000 / 20;
     const map = wrapperRefs.current;
 
-    function tick() {
-      for (const h of hotspots) {
-        const el = map.get(h.id);
-        if (!el) continue;
+    function tick(now: number) {
+      if (now - lastTick >= HOTSPOT_INTERVAL) {
+        lastTick = now;
+        for (const h of hotspots) {
+          const el = map.get(h.id);
+          if (!el) continue;
 
-        const projected = viewerApi.worldToScreen(h.posicao_x, h.posicao_y, h.posicao_z);
-        if (!projected || !projected.visible) {
-          el.style.display = 'none';
-        } else {
-          el.style.display = '';
-          el.style.transform = `translate3d(${projected.sx}px, ${projected.sy}px, 0) translate(-50%, -100%)`;
+          const projected = viewerApi.worldToScreen(h.posicao_x, h.posicao_y, h.posicao_z);
+          if (!projected || !projected.visible) {
+            el.style.display = 'none';
+          } else {
+            el.style.display = '';
+            el.style.transform = `translate3d(${projected.sx}px, ${projected.sy}px, 0) translate(-50%, -100%)`;
+          }
         }
       }
       rafId = requestAnimationFrame(tick);

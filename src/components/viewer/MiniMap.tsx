@@ -16,19 +16,26 @@ export function MiniMap({ api, hotspots, open }: MiniMapProps) {
   useEffect(() => {
     if (!open || !api) return;
     const viewerApi = api;
-    let id: number;
+    let rafId = 0;
+    let timeoutId = 0;
+
+    function scheduleNext() {
+      timeoutId = window.setTimeout(() => {
+        rafId = requestAnimationFrame(frame);
+      }, 100);
+    }
 
     function frame() {
       const canvas = canvasRef.current;
       const bounds = viewerApi.getSceneBounds();
       if (!canvas || !bounds) {
-        id = requestAnimationFrame(frame);
+        scheduleNext();
         return;
       }
 
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        id = requestAnimationFrame(frame);
+        scheduleNext();
         return;
       }
 
@@ -70,11 +77,14 @@ export function MiniMap({ api, hotspots, open }: MiniMapProps) {
       ctx.arc(cp.nx, cp.ny, 5, 0, Math.PI * 2);
       ctx.fill();
 
-      id = requestAnimationFrame(frame);
+      scheduleNext();
     }
 
-    id = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(id);
+    rafId = requestAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(timeoutId);
+    };
   }, [api, hotspots, open]);
 
   if (!open) return null;

@@ -197,6 +197,16 @@ export function SplatViewer({
         const { Viewer, RenderMode } = await loadSplatViewer();
         const quality = initialQuality ?? detectInitialQuality();
         const preset = QUALITY_PRESETS[quality];
+        const supportsGpuSort =
+          typeof navigator !== 'undefined' &&
+          (() => {
+            try {
+              const c = document.createElement('canvas');
+              return !!c.getContext('webgl2');
+            } catch {
+              return false;
+            }
+          })();
         let viewer: ViewerInstance = new Viewer({
           rootElement: containerRef.current!,
           cameraUp: cameraUpInverted ? [0, -1, 0] : [0, 1, 0],
@@ -204,9 +214,9 @@ export function SplatViewer({
           initialCameraLookAt: [0, 0, 0],
           sphericalHarmonicsDegree: preset.sphericalHarmonicsDegree,
           antialiased: preset.antialiased,
-          renderMode: RenderMode.Always,
-          gpuAcceleratedSort: false,
-          enableSIMDInSort: false,
+          renderMode: RenderMode.OnChange,
+          gpuAcceleratedSort: supportsGpuSort,
+          enableSIMDInSort: true,
           useBuiltInControls: false,
         });
         viewerRef.current = viewer;
@@ -240,9 +250,9 @@ export function SplatViewer({
               initialCameraLookAt: [0, 0, 0],
               sphericalHarmonicsDegree: preset.sphericalHarmonicsDegree,
               antialiased: preset.antialiased,
-              renderMode: RenderMode.Always,
-              gpuAcceleratedSort: false,
-              enableSIMDInSort: false,
+              renderMode: RenderMode.OnChange,
+              gpuAcceleratedSort: supportsGpuSort,
+              enableSIMDInSort: true,
               useBuiltInControls: false,
             });
             viewerRef.current = viewer;
@@ -284,7 +294,6 @@ export function SplatViewer({
 
         const b0 = boundsRef.current;
         const nav0 = navFromBounds(b0, cam.position.y);
-        console.log('[FPS] bbox:', b0, '| targetY:', nav0.targetY, '| cameraUpInverted:', cameraUpInverted);
 
         if (b0) {
           cam.position.set((b0.min[0]+b0.max[0])/2, nav0.targetY, (b0.min[2]+b0.max[2])/2);
@@ -295,6 +304,9 @@ export function SplatViewer({
         }
         cam.updateMatrixWorld(true);
         cachedNav = navFromBounds(boundsRef.current, cam.position.y);
+        const initElevationRange = elevationYRange(boundsRef.current, cam.position.y);
+        let cachedYMin = initElevationRange.yMin;
+        let cachedYMax = initElevationRange.yMax;
 
         const moveInput = { x: 0, z: 0 };
         const keysHeld = new Set<string>();
@@ -490,19 +502,18 @@ export function SplatViewer({
 
           if (zoomDelta !== 0) {
             const { expandedBounds } = cachedNav;
-            const { yMin, yMax } = elevationYRange(boundsRef.current, cam.position.y);
             tmpZoomForward.set(0, 0, -1).applyQuaternion(cam.quaternion);
             tmpZoomForward.y = 0;
             if (tmpZoomForward.lengthSq() > 0.001) tmpZoomForward.normalize();
             const ZOOM_ARC_RATIO = 0.6;
             cam.position.addScaledVector(tmpZoomForward, zoomDelta);
             cam.position.y += zoomDelta * ZOOM_ARC_RATIO * (cameraUpInverted ? -1 : 1);
-            cam.position.y = clamp(cam.position.y, yMin, yMax);
+            cam.position.y = clamp(cam.position.y, cachedYMin, cachedYMax);
             if (expandedBounds) {
               cam.position.x = clamp(cam.position.x, expandedBounds.min[0], expandedBounds.max[0]);
               cam.position.z = clamp(cam.position.z, expandedBounds.min[2], expandedBounds.max[2]);
             }
-            cachedNav = { ...cachedNav, targetY: cam.position.y };
+            cachedNav.targetY = cam.position.y;
             zoomDelta = 0;
           }
         }
@@ -546,10 +557,9 @@ export function SplatViewer({
             const { expandedBounds: ex } = navFromBounds(boundsRef.current, cam.position.y);
             cam.position.fromArray(state.position);
             if (boundsRef.current) {
-              const { yMin, yMax } = elevationYRange(boundsRef.current, cam.position.y);
-              cam.position.y = clamp(cam.position.y, yMin, yMax);
+              cam.position.y = clamp(cam.position.y, cachedYMin, cachedYMax);
             }
-            cachedNav = { ...cachedNav, targetY: cam.position.y };
+            cachedNav.targetY = cam.position.y;
             if (ex) {
               cam.position.x = clamp(cam.position.x, ex.min[0], ex.max[0]);
               cam.position.z = clamp(cam.position.z, ex.min[2], ex.max[2]);
@@ -587,16 +597,13 @@ export function SplatViewer({
           },
           getSceneBounds: () => boundsRef.current,
           getCameraElevationLimits: () => {
-            const bounds = boundsRef.current;
-            if (!bounds) return null;
-            const { yMin, yMax } = elevationYRange(bounds, cam.position.y);
-            return { yMin, yMax, currentY: cam.position.y };
+            if (!boundsRef.current) return null;
+            return { yMin: cachedYMin, yMax: cachedYMax, currentY: cam.position.y };
           },
           setCameraElevation: (y) => {
-            const { yMin, yMax } = elevationYRange(boundsRef.current, cam.position.y);
-            const newY = clamp(y, yMin, yMax);
+            const newY = clamp(y, cachedYMin, cachedYMax);
             cam.position.y = newY;
-            cachedNav = { ...cachedNav, targetY: newY };
+            cachedNav.targetY = newY;
           },
           pickWorldAtPointer: (cx, cy) => pickWorldFromViewer(viewer, cx, cy, boundsRef.current),
         };
@@ -625,6 +632,9 @@ export function SplatViewer({
                 boundsRef.current = fitted2.bounds;
                 homeStateRef.current = { position: fitted2.position, target: fitted2.target };
                 cachedNav = navFromBounds(fitted2.bounds, cam.position.y);
+                const newRange = elevationYRange(fitted2.bounds, cam.position.y);
+                cachedYMin = newRange.yMin;
+                cachedYMax = newRange.yMax;
               }
               callbacksRef.current.onFullReady?.();
             } catch (e) {
