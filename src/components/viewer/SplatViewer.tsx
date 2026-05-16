@@ -101,6 +101,9 @@ function pickWorldFromViewer(
   }
   return null;
 }
+  }
+  return null;
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -161,31 +164,15 @@ function navFromBounds(bounds: SceneBounds | null, fallbackY: number) {
 }
 
 function elevationYRange(bounds: SceneBounds | null, fallbackY: number) {
-  if (!bounds) {
-    return { yMin: fallbackY - 2, yMax: fallbackY + 6 };
-  }
+  if (!bounds) return { yMin: fallbackY - 2, yMax: fallbackY + 6 };
   const span = bounds.max[1] - bounds.min[1];
-  return {
-    yMin: bounds.min[1] + span * 0.25,
-    yMax: bounds.max[1] + span * 0.5,
-  };
+  return { yMin: bounds.min[1] + span * 0.25, yMax: bounds.max[1] + span * 0.5 };
 }
 
-
 export function SplatViewer({
-  splatUrl,
-  splatUrlLite,
-  cameraUpInverted = true,
-  splatRotationDeg = 0,
-  moveSpeedLevel = 'medium',
-  onReady,
-  onProgress,
-  onError,
-  onLiteReady,
-  onFullReady,
-  initialQuality,
-  pickMode = false,
-  onPickWorld,
+  splatUrl, splatUrlLite, cameraUpInverted = true, splatRotationDeg = 0,
+  moveSpeedLevel = 'medium', onReady, onProgress, onError,
+  onLiteReady, onFullReady, initialQuality, pickMode = false, onPickWorld,
 }: SplatViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<ViewerInstance>(null);
@@ -195,15 +182,12 @@ export function SplatViewer({
   const moveSpeedRef = useRef<number>(MOVE_SPEED_VALUES[moveSpeedLevel]);
   const [loading, setLoading] = useState(true);
   const [viewerReady, setViewerReady] = useState(false);
-
   const callbacksRef = useRef({ onReady, onProgress, onError, onLiteReady, onFullReady });
   useEffect(() => {
     callbacksRef.current = { onReady, onProgress, onError, onLiteReady, onFullReady };
   }, [onReady, onProgress, onError, onLiteReady, onFullReady]);
-
   useEffect(() => { pickModeRef.current = pickMode; }, [pickMode]);
   useEffect(() => { moveSpeedRef.current = MOVE_SPEED_VALUES[moveSpeedLevel]; }, [moveSpeedLevel]);
-
   const homeStateRef = useRef<{ position: [number, number, number]; target: [number, number, number] } | null>(null);
   const pickHandlerRef = useRef(onPickWorld);
   useEffect(() => { pickHandlerRef.current = onPickWorld; }, [onPickWorld]);
@@ -211,13 +195,11 @@ export function SplatViewer({
   useEffect(() => {
     if (!containerRef.current) return;
     let mounted = true;
-
     void (async () => {
       try {
         const { Viewer, RenderMode } = await loadSplatViewer();
         const quality = initialQuality ?? detectInitialQuality();
         const preset = QUALITY_PRESETS[quality];
-
         let viewer: ViewerInstance = new Viewer({
           rootElement: containerRef.current!,
           cameraUp: cameraUpInverted ? [0, -1, 0] : [0, 1, 0],
@@ -230,19 +212,15 @@ export function SplatViewer({
           enableSIMDInSort: false,
           useBuiltInControls: false,
         });
-
         viewerRef.current = viewer;
-
         const liteTrimmed = splatUrlLite?.trim() ?? '';
         const LITE_TIMEOUT_MS = 5000;
         let liteLoadedOk = false;
-
         if (liteTrimmed) {
           try {
             await Promise.race([
               viewer.addSplatScene(liteTrimmed, {
-                progressiveLoad: true,
-                showLoadingUI: false,
+                progressiveLoad: true, showLoadingUI: false,
                 onProgress: (percent: number) => {
                   callbacksRef.current.onProgress?.(percent);
                   if (percent >= 99) callbacksRef.current.onProgress?.(100);
@@ -273,11 +251,9 @@ export function SplatViewer({
             viewerRef.current = viewer;
           }
         }
-
         if (!liteLoadedOk) {
           await viewer.addSplatScene(splatUrl, {
-            progressiveLoad: true,
-            showLoadingUI: false,
+            progressiveLoad: true, showLoadingUI: false,
             onProgress: (percent: number) => {
               callbacksRef.current.onProgress?.(percent);
               if (percent >= 99) callbacksRef.current.onProgress?.(100);
@@ -285,9 +261,7 @@ export function SplatViewer({
           });
           if (!mounted) return;
         }
-
         if (viewer.renderer) viewer.renderer.setPixelRatio(preset.pixelRatio);
-
         let cachedNav: ReturnType<typeof navFromBounds>;
         const fitted = fitCameraToSplat(viewer, cameraUpInverted);
         if (fitted) {
@@ -309,26 +283,18 @@ export function SplatViewer({
 
         const PITCH_LIMIT = Math.PI / 2.2;
         const LOOK_SPEED = isCoarsePointer ? 0.0025 : 0.003;
-
-        let yaw = 0;
-        let pitch = 0;
-        let lastYaw = yaw - 1;
-        let lastPitch = pitch - 1;
+        let yaw = 0, pitch = 0, lastYaw = -1, lastPitch = -1;
 
         const b0 = boundsRef.current;
         const nav0 = navFromBounds(b0, cam.position.y);
         console.log('[FPS] bbox:', b0, '| targetY:', nav0.targetY, '| cameraUpInverted:', cameraUpInverted);
 
         if (b0) {
-          const centerX = (b0.min[0] + b0.max[0]) / 2;
-          const centerZ = (b0.min[2] + b0.max[2]) / 2;
-          cam.position.set(centerX, nav0.targetY, centerZ);
+          cam.position.set((b0.min[0]+b0.max[0])/2, nav0.targetY, (b0.min[2]+b0.max[2])/2);
           yaw = (-splatRotationDeg * Math.PI) / 180;
-          pitch = 0;
         } else {
           cam.position.y = nav0.targetY;
           yaw = (-splatRotationDeg * Math.PI) / 180;
-          pitch = 0;
         }
         cam.updateMatrixWorld(true);
         cachedNav = navFromBounds(boundsRef.current, cam.position.y);
@@ -373,7 +339,6 @@ export function SplatViewer({
         const onPointerDown = (e: PointerEvent) => {
           if (pickModeRef.current) return;
           if (!isCoarsePointer && e.button !== 0) return;
-          // No touch: ignora toques na metade esquerda (zona do joystick)
           if (isCoarsePointer && canvasEl) {
             const rect = canvasEl.getBoundingClientRect();
             if (e.clientX - rect.left < rect.width * 0.5) return;
@@ -413,16 +378,25 @@ export function SplatViewer({
           return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
         }
 
+        // Pinch só ativa quando AMBOS os dedos estão na metade direita da tela.
+        // Joystick (metade esquerda) + dedo de rotação (metade direita) NÃO
+        // ativa pinch — são gestos independentes e não devem interferir.
+        const isRightHalf = (clientX: number): boolean => {
+          if (!canvasEl) return true;
+          const rect = canvasEl.getBoundingClientRect();
+          return clientX - rect.left >= rect.width * 0.5;
+        };
+
         const onPinchPointerDown = (e: PointerEvent) => {
           if (pickModeRef.current) return;
           if (e.pointerType === 'mouse') return;
+          if (!isRightHalf(e.clientX)) return; // ignora dedo no joystick
           pinchActivePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
           if (pinchActivePointers.size === 2) {
             const pts = Array.from(pinchActivePointers.values());
             pinchLastDistance = getPinchDistance(pts[0]!, pts[1]!);
           }
         };
-
         const onPinchPointerMove = (e: PointerEvent) => {
           if (pickModeRef.current) return;
           if (!pinchActivePointers.has(e.pointerId)) return;
@@ -430,13 +404,11 @@ export function SplatViewer({
           if (pinchActivePointers.size === 2 && pinchLastDistance !== null) {
             const pts = Array.from(pinchActivePointers.values());
             const currentDistance = getPinchDistance(pts[0]!, pts[1]!);
-            const distanceDelta = currentDistance - pinchLastDistance;
-            zoomDelta -= distanceDelta * ZOOM_PINCH_SPEED;
+            zoomDelta -= (currentDistance - pinchLastDistance) * ZOOM_PINCH_SPEED;
             pinchLastDistance = currentDistance;
             if (lastPointer !== null) lastPointer = null;
           }
         };
-
         const onPinchPointerUp = (e: PointerEvent) => {
           pinchActivePointers.delete(e.pointerId);
           if (pinchActivePointers.size < 2) pinchLastDistance = null;
@@ -449,8 +421,8 @@ export function SplatViewer({
           canvasEl.addEventListener('pointercancel', onPointerUp);
           canvasEl.addEventListener('wheel', onWheel, { passive: false });
         }
-        // Pinch no window: captura os dois dedos mesmo quando um está no joystick
-        // (metade esquerda) e o outro no canvas (metade direita).
+        // Pinch no window: captura dois dedos na metade direita.
+        // isRightHalf() garante que joystick+look não dispara pinch.
         window.addEventListener('pointerdown', onPinchPointerDown);
         window.addEventListener('pointermove', onPinchPointerMove);
         window.addEventListener('pointerup', onPinchPointerUp);
@@ -471,14 +443,9 @@ export function SplatViewer({
           };
         }
 
-        const tmpForward = new Vector3();
-        const tmpRight = new Vector3();
-        const tmpZoomForward = new Vector3();
-        const tmpQuat = new Quaternion();
-        const tmpYawQ = new Quaternion();
-        const tmpPitchQ = new Quaternion();
-        const tmpBaseQ = new Quaternion();
-        const tmpRightVec = new Vector3();
+        const tmpForward = new Vector3(), tmpRight = new Vector3(), tmpZoomForward = new Vector3();
+        const tmpQuat = new Quaternion(), tmpYawQ = new Quaternion();
+        const tmpPitchQ = new Quaternion(), tmpBaseQ = new Quaternion(), tmpRightVec = new Vector3();
         const worldUpAxis = new Vector3(0, cameraUpInverted ? -1 : 1, 0);
         if (cameraUpInverted) tmpBaseQ.set(1, 0, 0, 0);
 
@@ -526,7 +493,6 @@ export function SplatViewer({
             }
           }
 
-          // ── ZOOM ORBITAL (scroll / pinch) ──────────────────────────────
           if (zoomDelta !== 0) {
             const { expandedBounds } = cachedNav;
             const { yMin, yMax } = elevationYRange(boundsRef.current, cam.position.y);
@@ -571,7 +537,7 @@ export function SplatViewer({
           resetCamera: () => {
             const br = boundsRef.current;
             const { targetY: ty } = navFromBounds(br, cam.position.y);
-            if (br) cam.position.set((br.min[0] + br.max[0]) / 2, ty, (br.min[2] + br.max[2]) / 2);
+            if (br) cam.position.set((br.min[0]+br.max[0])/2, ty, (br.min[2]+br.max[2])/2);
             else cam.position.set(0, ty, 0);
             yaw = 0; pitch = 0;
           },
@@ -594,12 +560,9 @@ export function SplatViewer({
               cam.position.z = clamp(cam.position.z, ex.min[2], ex.max[2]);
             }
             const cx = cam.position.x, cy = cam.position.y, cz = cam.position.z;
-            const dx = state.target[0] - cx;
-            const dy = state.target[1] - cy;
-            const dz = state.target[2] - cz;
-            const horizLen = Math.sqrt(dx * dx + dz * dz);
+            const dx = state.target[0]-cx, dy = state.target[1]-cy, dz = state.target[2]-cz;
             yaw = Math.atan2(-dx, cameraUpInverted ? dz : -dz);
-            pitch = clamp(Math.atan2(cameraUpInverted ? -dy : dy, horizLen), -PITCH_LIMIT, PITCH_LIMIT);
+            pitch = clamp(Math.atan2(cameraUpInverted ? -dy : dy, Math.sqrt(dx*dx+dz*dz)), -PITCH_LIMIT, PITCH_LIMIT);
           },
           takeScreenshot: async () => {
             const canvas = viewer.renderer?.domElement as HTMLCanvasElement | undefined;
@@ -625,11 +588,7 @@ export function SplatViewer({
             const v = new Vector3(wx, wy, wz);
             v.project(cam as Camera);
             const w = canvas.clientWidth, h = canvas.clientHeight;
-            return {
-              sx: (v.x * 0.5 + 0.5) * w,
-              sy: (-v.y * 0.5 + 0.5) * h,
-              visible: v.z > -1 && v.z < 1,
-            };
+            return { sx: (v.x*0.5+0.5)*w, sy: (-v.y*0.5+0.5)*h, visible: v.z>-1&&v.z<1 };
           },
           getSceneBounds: () => boundsRef.current,
           getCameraElevationLimits: () => {
@@ -644,8 +603,7 @@ export function SplatViewer({
             cam.position.y = newY;
             cachedNav = { ...cachedNav, targetY: newY };
           },
-          pickWorldAtPointer: (cx, cy) =>
-            pickWorldFromViewer(viewer, cx, cy, boundsRef.current),
+          pickWorldAtPointer: (cx, cy) => pickWorldFromViewer(viewer, cx, cy, boundsRef.current),
         };
 
         callbacksRef.current.onReady?.(api);
@@ -657,10 +615,9 @@ export function SplatViewer({
             if (!v || !mounted) return;
             try {
               await v.addSplatScene(splatUrl, {
-                progressiveLoad: true,
-                showLoadingUI: false,
+                progressiveLoad: true, showLoadingUI: false,
                 onProgress: (pct: number) => {
-                  callbacksRef.current.onProgress?.(Math.min(100, Math.round(55 + (pct * 45) / 100)));
+                  callbacksRef.current.onProgress?.(Math.min(100, Math.round(55+(pct*45)/100)));
                   if (pct >= 99) callbacksRef.current.onProgress?.(100);
                 },
               });
