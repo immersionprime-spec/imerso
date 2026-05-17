@@ -17,6 +17,7 @@ import { MiniMap } from './MiniMap';
 import { CinematicPlayer } from './CinematicPlayer';
 import { ElevationSlider } from './ElevationSlider';
 import { PortaButtons } from './PortaButtons';
+import { ProximityPortaTransition } from './ProximityPortaTransition';
 
 interface TourPublicExperienceProps {
   data: PublicTourPayload;
@@ -194,6 +195,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
       {showCinematic ? <CinematicPlayer api={api} waypoints={cinematicWaypoints} /> : null}
       <ElevationSlider api={api} />
       <PortaButtons api={api} waypoints={data.waypoints} />
+      <ProximityPortaTransition api={api} waypoints={data.waypoints} />
       <ViewerControls
         api={api}
         onInfo={() => setInfoOpen(true)}
