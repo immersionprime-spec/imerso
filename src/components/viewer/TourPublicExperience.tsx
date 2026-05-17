@@ -16,7 +16,7 @@ import { HotspotMarkers } from './HotspotMarkers';
 import { MiniMap } from './MiniMap';
 import { CinematicPlayer } from './CinematicPlayer';
 import { ElevationSlider } from './ElevationSlider';
-import { RoomTransitionButton, type RoomTransitionTarget } from './RoomTransitionButton';
+import { PortaButtons } from './PortaButtons';
 
 interface TourPublicExperienceProps {
   data: PublicTourPayload;
@@ -168,31 +168,9 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
     setMoveSpeed(s);
   }, []);
 
-  const showCinematic = data.tour.has_cinematic_mode && data.waypoints.length >= 2;
-
-  // Mapeamento de transições entre cômodos pela pathname da URL.
-  // tour.slug não está disponível no PublicTourPayload, por isso usa window.location.
-  // locale default é 'pt' (confirmado em src/i18n/routing.ts).
-  const ROOM_TRANSITIONS: Record<string, RoomTransitionTarget> = {
-    'sala-cabana': {
-      label: '→ Quarto',
-      href: '/pt/imerso-demo/quarto',
-    },
-    'quarto': {
-      label: '→ Sala',
-      href: '/pt/cabana-alvorada/sala-cabana',
-    },
-  };
-
-  const currentSlug =
-    typeof window !== 'undefined'
-      ? (Object.keys(ROOM_TRANSITIONS).find((slug) =>
-          window.location.pathname.includes(`/${slug}`)
-        ) ?? null)
-      : null;
-
-  const roomTransition: RoomTransitionTarget | null =
-    currentSlug !== null ? (ROOM_TRANSITIONS[currentSlug] ?? null) : null;
+  const cinematicWaypoints = data.waypoints.filter((w) => !w.next_tour_id);
+  const showCinematic =
+    data.tour.has_cinematic_mode && cinematicWaypoints.length >= 2;
 
   return (
     <div className="relative min-h-dvh w-full bg-background">
@@ -213,9 +191,9 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
       </div>
       <HotspotMarkers api={api} hotspots={data.hotspots} />
       <MiniMap api={api} hotspots={data.hotspots} open={minimapOpen} />
-      {showCinematic ? <CinematicPlayer api={api} waypoints={data.waypoints} /> : null}
+      {showCinematic ? <CinematicPlayer api={api} waypoints={cinematicWaypoints} /> : null}
       <ElevationSlider api={api} />
-      <RoomTransitionButton api={api} transition={roomTransition} />
+      <PortaButtons api={api} waypoints={data.waypoints} />
       <ViewerControls
         api={api}
         onInfo={() => setInfoOpen(true)}

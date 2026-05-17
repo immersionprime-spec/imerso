@@ -132,3 +132,18 @@ export const tourCameraStartSchema = z.object({
   position: z.tuple([z.number(), z.number(), z.number()]),
   target: z.tuple([z.number(), z.number(), z.number()]),
 });
+
+export const createPortaWaypointSchema = z.object({
+  position_x: z.coerce.number(),
+  position_y: z.coerce.number(),
+  position_z: z.coerce.number(),
+  target_x: z.coerce.number(),
+  target_y: z.coerce.number(),
+  target_z: z.coerce.number(),
+  label: z.string().min(1).max(80),
+  next_tour_id: z.string().uuid(),
+  next_cam_position: z.object({ x: z.number(), y: z.number(), z: z.number() }),
+  next_cam_target: z.object({ x: z.number(), y: z.number(), z: z.number() }),
+});
+
+export const updatePortaWaypointSchema = createPortaWaypointSchema.partial();

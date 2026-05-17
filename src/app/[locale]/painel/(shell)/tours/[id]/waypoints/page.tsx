@@ -48,6 +48,7 @@ export default async function TourWaypointsPage({ params }: PageProps) {
     .from('tour_waypoints')
     .select('id, ordem, position_x, position_y, position_z, target_x, target_y, target_z, duration_ms')
     .eq('tour_id', id)
+    .is('next_tour_id', null)
     .order('ordem', { ascending: true });
 
   const waypoints = ((wpRaw ?? []) as WaypointRow[]).map((w) => ({
@@ -60,6 +61,11 @@ export default async function TourWaypointsPage({ params }: PageProps) {
     target_y: Number(w.target_y),
     target_z: Number(w.target_z),
     duration_ms: w.duration_ms ?? 4000,
+    label: null,
+    next_tour_id: null,
+    next_tour_href: null,
+    next_cam_position: null,
+    next_cam_target: null,
   }));
 
   const t = await getTranslations('admin.tours.waypoints');

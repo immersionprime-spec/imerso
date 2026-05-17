@@ -122,24 +122,77 @@ export async function fetchPublicTourPayload(opts: FetchOptions): Promise<
     .order('ordem', { ascending: true });
 
   let waypoints: PublicTourPayload['waypoints'] = [];
-  if (tourRow.has_cinematic_mode) {
+  {
     const { data: wp } = await supabase
       .from('tour_waypoints')
-      .select('id, ordem, position_x, position_y, position_z, target_x, target_y, target_z, duration_ms')
+      .select(
+        'id, ordem, position_x, position_y, position_z, target_x, target_y, target_z, duration_ms, label, next_tour_id, next_cam_position, next_cam_target'
+      )
       .eq('tour_id', tourRow.id)
       .order('ordem', { ascending: true });
-    waypoints =
-      (wp ?? []).map((w) => ({
-        id: w.id,
-        ordem: w.ordem,
-        position_x: Number(w.position_x),
-        position_y: Number(w.position_y),
-        position_z: Number(w.position_z),
-        target_x: Number(w.target_x),
-        target_y: Number(w.target_y),
-        target_z: Number(w.target_z),
-        duration_ms: w.duration_ms ?? 4000,
-      })) ?? [];
+
+    type WpRow = {
+      id: string;
+      ordem: number;
+      position_x: number | string;
+      position_y: number | string;
+      position_z: number | string;
+      target_x: number | string;
+      target_y: number | string;
+      target_z: number | string;
+      duration_ms: number | null;
+      label: string | null;
+      next_tour_id: string | null;
+      next_cam_position: Json | null;
+      next_cam_target: Json | null;
+    };
+
+    const wpList = (wp ?? []) as unknown as WpRow[];
+    const nextTourIds = wpList
+      .map((w) => w.next_tour_id)
+      .filter((id): id is string => Boolean(id));
+
+    const nextHrefMap: Record<string, string> = {};
+    if (nextTourIds.length > 0) {
+      const { data: destTours } = await supabase
+        .from('tours')
+        .select('id, slug, imobiliaria_id')
+        .in('id', nextTourIds);
+      if (destTours && destTours.length > 0) {
+        const imoIds = [...new Set(destTours.map((t) => t.imobiliaria_id as string))];
+        const { data: imos } = await supabase
+          .from('imobiliarias')
+          .select('id, slug')
+          .in('id', imoIds);
+        const imoMap: Record<string, string> = {};
+        for (const imo of imos ?? []) {
+          imoMap[imo.id as string] = imo.slug as string;
+        }
+        for (const t of destTours) {
+          const imoSlug = imoMap[t.imobiliaria_id as string];
+          if (imoSlug) {
+            nextHrefMap[t.id as string] = `/pt/${imoSlug}/${t.slug}`;
+          }
+        }
+      }
+    }
+
+    waypoints = wpList.map((w) => ({
+      id: w.id,
+      ordem: w.ordem,
+      position_x: Number(w.position_x),
+      position_y: Number(w.position_y),
+      position_z: Number(w.position_z),
+      target_x: Number(w.target_x),
+      target_y: Number(w.target_y),
+      target_z: Number(w.target_z),
+      duration_ms: w.duration_ms ?? 4000,
+      label: (w.label as string | null) ?? null,
+      next_tour_id: (w.next_tour_id as string | null) ?? null,
+      next_tour_href: w.next_tour_id ? (nextHrefMap[w.next_tour_id as string] ?? null) : null,
+      next_cam_position: parseCameraTuple(w.next_cam_position),
+      next_cam_target: parseCameraTuple(w.next_cam_target),
+    }));
   }
 
   const data: PublicTourPayload = {

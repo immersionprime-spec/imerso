@@ -56,5 +56,10 @@ export interface PublicTourPayload {
     target_y: number;
     target_z: number;
     duration_ms: number;
+    label: string | null;
+    next_tour_id: string | null;
+    next_tour_href: string | null;
+    next_cam_position: [number, number, number] | null;
+    next_cam_target: [number, number, number] | null;
   }>;
 }

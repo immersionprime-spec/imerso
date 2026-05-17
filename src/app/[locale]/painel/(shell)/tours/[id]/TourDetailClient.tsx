@@ -64,6 +64,7 @@ export function TourDetailClient({
   const [hasCinematic, setHasCinematic] = useState(initial.has_cinematic_mode);
   const [cobranca, setCobranca] = useState(initial.cobranca_cliente_brl != null ? String(initial.cobranca_cliente_brl) : '');
   const [fotoCapa, setFotoCapa] = useState(initial.foto_capa_url ?? '');
+  const [removingSplat, setRemovingSplat] = useState(false);
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const publicPath = imobiliariaSlug && slug ? `/${imobiliariaSlug}/${slug}` : '';
@@ -122,6 +123,25 @@ export function TourDetailClient({
     toast.success(t('archived_tour'));
     router.push('/painel/tours');
     router.refresh();
+  }
+
+  async function removeSplat() {
+    if (!window.confirm(t('confirm_remove_splat'))) return;
+    setRemovingSplat(true);
+    try {
+      const res = await fetch(`/api/admin/tours/${initial.id}/splat/reset`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        toast.error(j?.error?.message ?? t('remove_splat_error'));
+        return;
+      }
+      toast.success(t('remove_splat_success'));
+      router.refresh();
+    } finally {
+      setRemovingSplat(false);
+    }
   }
 
   return (
@@ -250,7 +270,11 @@ export function TourDetailClient({
             <Button type="button" onClick={saveDados} disabled={loading}>
               {loading ? t('saving') : t('submit')}
             </Button>
-            <Button type="button" variant="destructive" onClick={archiveTour}>
+          </div>
+          <div className="mt-6 space-y-2 rounded-lg border border-red-800/30 bg-red-950/10 p-4">
+            <p className="text-sm font-medium text-red-400">{t('danger_zone_title')}</p>
+            <p className="text-xs text-text-muted">{t('danger_zone_archive_hint')}</p>
+            <Button type="button" variant="destructive" size="sm" onClick={archiveTour}>
               {t('archive_tour')}
             </Button>
           </div>
@@ -272,6 +296,33 @@ export function TourDetailClient({
               Upload de splat (.ply / .ksplat)
             </Link>
           </div>
+          {initial.splat_url ? (
+            <div className="space-y-2 border-t border-border pt-4">
+              <p className="font-medium text-text-primary">{t('start_point_title')}</p>
+              <p className="text-xs text-text-muted">{t('start_point_desc')}</p>
+              <Link
+                href={`/painel/tours/${initial.id}/preview`}
+                className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'inline-flex')}
+              >
+                {t('start_point_link')}
+              </Link>
+            </div>
+          ) : null}
+          {initial.splat_url && initial.status === 'ready' ? (
+            <div className="space-y-2 border-t border-border pt-4">
+              <p className="font-medium text-text-primary">{t('remove_splat_title')}</p>
+              <p className="text-xs text-text-muted">{t('remove_splat_desc')}</p>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={removingSplat}
+                onClick={removeSplat}
+              >
+                {removingSplat ? t('remove_splat_removing') : t('remove_splat_button')}
+              </Button>
+            </div>
+          ) : null}
           <div className="border-t border-border pt-4 space-y-2">
             <p className="font-medium text-text-primary">Vídeo bruto</p>
             <p className="text-text-muted">{t('midia_upload_hint')}</p>
@@ -312,6 +363,12 @@ export function TourDetailClient({
               className={cn(buttonVariants({ variant: 'outline', size: 'md' }), 'inline-flex justify-center')}
             >
               {t('link_waypoints')}
+            </Link>
+            <Link
+              href={`/painel/tours/${initial.id}/portas`}
+              className={cn(buttonVariants({ variant: 'outline', size: 'md' }), 'inline-flex justify-center')}
+            >
+              🚪 Portas entre tours
             </Link>
           </div>
           {publicPath ? (
