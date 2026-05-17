@@ -193,7 +193,7 @@ export function SplatViewer({
   useEffect(() => {
     if (!containerRef.current) return;
     let mounted = true;
-    let fitRetryTimer: ReturnType<typeof window.setInterval> | null = null;
+    let fitRetryTimer: number | null = null;
     void (async () => {
       try {
         const { Viewer, RenderMode } = await loadSplatViewer();
