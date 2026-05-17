@@ -16,6 +16,7 @@ import { HotspotMarkers } from './HotspotMarkers';
 import { MiniMap } from './MiniMap';
 import { CinematicPlayer } from './CinematicPlayer';
 import { ElevationSlider } from './ElevationSlider';
+import { RoomTransitionButton, type RoomTransitionTarget } from './RoomTransitionButton';
 
 interface TourPublicExperienceProps {
   data: PublicTourPayload;
@@ -169,6 +170,30 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
 
   const showCinematic = data.tour.has_cinematic_mode && data.waypoints.length >= 2;
 
+  // Mapeamento de transições entre cômodos pela pathname da URL.
+  // tour.slug não está disponível no PublicTourPayload, por isso usa window.location.
+  // locale default é 'pt' (confirmado em src/i18n/routing.ts).
+  const ROOM_TRANSITIONS: Record<string, RoomTransitionTarget> = {
+    'sala-cabana': {
+      label: '→ Quarto',
+      href: '/pt/imerso-demo/quarto',
+    },
+    'quarto': {
+      label: '→ Sala',
+      href: '/pt/cabana-alvorada/sala-cabana',
+    },
+  };
+
+  const currentSlug =
+    typeof window !== 'undefined'
+      ? (Object.keys(ROOM_TRANSITIONS).find((slug) =>
+          window.location.pathname.includes(`/${slug}`)
+        ) ?? null)
+      : null;
+
+  const roomTransition: RoomTransitionTarget | null =
+    currentSlug !== null ? (ROOM_TRANSITIONS[currentSlug] ?? null) : null;
+
   return (
     <div className="relative min-h-dvh w-full bg-background">
       <LoadingScreen visible={loadingOverlay} progress={loadProgress} />
@@ -190,6 +215,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
       <MiniMap api={api} hotspots={data.hotspots} open={minimapOpen} />
       {showCinematic ? <CinematicPlayer api={api} waypoints={data.waypoints} /> : null}
       <ElevationSlider api={api} />
+      <RoomTransitionButton api={api} transition={roomTransition} />
       <ViewerControls
         api={api}
         onInfo={() => setInfoOpen(true)}
@@ -225,6 +251,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
           <img src={data.imobiliaria.logo_url} alt="" className="max-h-10 w-auto opacity-90 sm:max-h-12" />
         </div>
       ) : null}
+
     </div>
   );
 }
