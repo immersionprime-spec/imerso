@@ -193,6 +193,7 @@ export function SplatViewer({
   useEffect(() => {
     if (!containerRef.current) return;
     let mounted = true;
+    let fitRetryTimer: ReturnType<typeof window.setInterval> | null = null;
     void (async () => {
       try {
         const { Viewer, RenderMode } = await loadSplatViewer();
@@ -268,7 +269,23 @@ export function SplatViewer({
           viewer.renderer.setPixelRatio(dpr);
         }
         let cachedNav: ReturnType<typeof navFromBounds>;
-        const fitted = fitCameraToSplat(viewer, cameraUpInverted);
+        let fitted = fitCameraToSplat(viewer, cameraUpInverted);
+
+        if (!fitted) {
+          await new Promise<void>((resolve) => {
+            let attempts = 0;
+            const retry = () => {
+              fitted = fitCameraToSplat(viewer, cameraUpInverted);
+              if (fitted || ++attempts >= 20 || !mounted) {
+                resolve();
+              } else {
+                window.setTimeout(retry, 150);
+              }
+            };
+            window.setTimeout(retry, 150);
+          });
+        }
+
         if (fitted) {
           homeStateRef.current = { position: fitted.position, target: fitted.target };
           boundsRef.current = fitted.bounds;
@@ -303,6 +320,39 @@ export function SplatViewer({
         const initElevationRange = elevationYRange(boundsRef.current, cam.position.y);
         let cachedYMin = initElevationRange.yMin;
         let cachedYMax = initElevationRange.yMax;
+
+        const applySceneFit = (): boolean => {
+          const fittedNow = fitCameraToSplat(viewer, cameraUpInverted);
+          if (!fittedNow) return false;
+          homeStateRef.current = { position: fittedNow.position, target: fittedNow.target };
+          boundsRef.current = fittedNow.bounds;
+          const navFit = navFromBounds(fittedNow.bounds, cam.position.y);
+          cachedNav = navFit;
+          cam.position.set(
+            (fittedNow.bounds.min[0] + fittedNow.bounds.max[0]) / 2,
+            navFit.targetY,
+            (fittedNow.bounds.min[2] + fittedNow.bounds.max[2]) / 2
+          );
+          yaw = (-splatRotationDeg * Math.PI) / 180;
+          pitch = 0;
+          lastYaw = -1;
+          lastPitch = -1;
+          const elevRange = elevationYRange(fittedNow.bounds, cam.position.y);
+          cachedYMin = elevRange.yMin;
+          cachedYMax = elevRange.yMax;
+          cam.updateMatrixWorld(true);
+          return true;
+        };
+
+        if (!boundsRef.current) {
+          let fitAttempts = 0;
+          fitRetryTimer = window.setInterval(() => {
+            if (applySceneFit() || ++fitAttempts >= 30) {
+              if (fitRetryTimer !== null) window.clearInterval(fitRetryTimer);
+              fitRetryTimer = null;
+            }
+          }, 300);
+        }
 
         const moveInput = { x: 0, z: 0 };
         const keysHeld = new Set<string>();
@@ -533,6 +583,7 @@ export function SplatViewer({
         rafId = requestAnimationFrame(fpsLoop);
 
         const fpsCleanup = () => {
+          if (fitRetryTimer !== null) window.clearInterval(fitRetryTimer);
           cancelAnimationFrame(rafId);
           keyCleanup?.();
           if (canvasEl) {
@@ -666,6 +717,7 @@ export function SplatViewer({
     return () => {
       mounted = false;
       setViewerReady(false);
+      if (fitRetryTimer !== null) window.clearInterval(fitRetryTimer);
       fpsCleanupRef.current?.();
       fpsCleanupRef.current = null;
       const v = viewerRef.current;

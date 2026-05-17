@@ -26,6 +26,16 @@
 
 ---
 
+## Fase 3 — tunar COLMAP + retry com seeds *(backlog, não urgente)*
+
+**Status:** Pendente. **Não priorizar** enquanto houver pelo menos um tour estável e não houver fila constante de vídeos novos com sparse a fragmentar.
+
+**Escopo (quando fizer sentido):** afinar parâmetros COLMAP / mapper, retries com seeds, fluxo quando o sparse falha de forma recorrente.
+
+**Quando revisitar:** quando o próximo vídeo novo entrar e o SfM passar a fragmentar de forma repetida — aí alinhar com o founder antes de gastar ciclos nisto.
+
+---
+
 ## Próximas sessões — em ordem de execução
 
 A ordem reflete o caminho de **menor risco / maior impacto em receita**, respeitando dependências reais (não dá pra escalar antes de validar qualidade; não dá pra processar em nuvem antes de comprimir o `.ply`).
@@ -358,9 +368,9 @@ A ordem reflete o caminho de **menor risco / maior impacto em receita**, respeit
 
 **Contexto econômico:** RTX 4090 serverless no RunPod custa ~$0.69/h. Tour de ~30min de processamento = ~$0.35/tour de GPU. Com overhead (storage, transferência, retries), ~$0.50–0.80/tour. Comparado ao custo Luma estimado anterior (~$25–50/tour), **margem ~50x melhor**.
 
-**Stack:**
+**Stack (alinhado ao pipeline local — ver `scripts/local-gs/README.md` «STACK FIXA»):**
 - Container Docker base: `nvidia/cuda:12.1.0-devel-ubuntu22.04`
-- Instalar: COLMAP 4.1, Brush v0.3.0, ffmpeg, AWS CLI (para R2)
+- Instalar: **COLMAP 3.11.1** (pinado com Brush 0.3.0; não subir para COLMAP 3.12+ sem Brush 0.4+ ou trainer alternativo validado), Brush v0.3.0, ffmpeg, AWS CLI (para R2)
 - Entrypoint: script que recebe job (via env vars: `TOUR_ID`, `INPUT_R2_KEY`, `MODE` (video|photos), `ADMIN_TOKEN`)
 - Fluxo: download input do R2 → roda pipeline → sobe `.ksplat` pro R2 → POST finalize
 - Filas: começar com **Supabase + polling** (cron no RunPod consulta `tours` com status='processing'). Migrar para BullMQ/Redis se volume justificar.

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
+import { TourEditor } from '@/components/admin/tour-editor/TourEditor';
 import { toast } from 'sonner';
 import { Button, buttonVariants } from '@/components/ui/Button';
 import { cn } from '@/lib/utils/cn';
@@ -29,24 +30,34 @@ type Tour = {
   status: string;
   foto_capa_url: string | null;
   splat_url: string | null;
+  camera_up_inverted: boolean;
+  splat_rotation_deg: number | null;
 };
 
-const TABS = ['dados', 'midia', 'links'] as const;
+const TABS = ['dados', 'midia', 'editor', 'links'] as const;
+type TourTab = (typeof TABS)[number];
+
+function parseTourTab(value: string | undefined): TourTab {
+  if (value === 'midia' || value === 'editor' || value === 'links') return value;
+  return 'dados';
+}
 
 export function TourDetailClient({
   tour: initial,
   imobiliariaSlug,
   imobiliariaNome,
   corretores,
+  initialTab,
 }: {
   tour: Tour;
   imobiliariaSlug: string;
   imobiliariaNome: string;
   corretores: { id: string; nome: string }[];
+  initialTab?: string;
 }) {
   const t = useTranslations('admin.tours');
   const router = useRouter();
-  const [tab, setTab] = useState<(typeof TABS)[number]>('dados');
+  const [tab, setTab] = useState<TourTab>(() => parseTourTab(initialTab));
   const [loading, setLoading] = useState(false);
 
   const [titulo, setTitulo] = useState(initial.titulo);
@@ -348,6 +359,15 @@ export function TourDetailClient({
         </div>
       ) : null}
 
+      {tab === 'editor' ? (
+        <TourEditor
+          tourId={initial.id}
+          splatUrl={initial.splat_url ?? ''}
+          cameraUpInverted={initial.camera_up_inverted}
+          splatRotationDeg={initial.splat_rotation_deg}
+        />
+      ) : null}
+
       {tab === 'links' ? (
         <div className="space-y-6 rounded-lg border border-border bg-surface p-6 text-sm">
           <p className="text-text-secondary">{t('links_intro')}</p>
@@ -365,10 +385,10 @@ export function TourDetailClient({
               {t('link_waypoints')}
             </Link>
             <Link
-              href={`/painel/tours/${initial.id}/portas`}
+              href={`/painel/tours/${initial.id}?tab=editor`}
               className={cn(buttonVariants({ variant: 'outline', size: 'md' }), 'inline-flex justify-center')}
             >
-              🚪 Portas entre tours
+              {t('link_editor')}
             </Link>
           </div>
           {publicPath ? (
