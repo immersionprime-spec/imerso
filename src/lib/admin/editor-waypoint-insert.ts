@@ -86,7 +86,19 @@ export async function insertEditorWaypoint(
   const insert: WpInsert = {
     tour_id: tourId,
     ordem,
-    ...payload,
+    position_x: data.position_x,
+    position_y: data.position_y,
+    position_z: data.position_z,
+    target_x: data.target_x,
+    target_y: data.target_y,
+    target_z: data.target_z,
+    duration_ms: payload.duration_ms ?? 0,
+    label: payload.label ?? null,
+    next_tour_id: payload.next_tour_id ?? null,
+    next_cam_position: payload.next_cam_position ?? null,
+    next_cam_target: payload.next_cam_target ?? null,
+    proximity_threshold: payload.proximity_threshold ?? 1.8,
+    label_distance: payload.label_distance ?? 3.0,
   };
 
   const { data: row, error } = await supabase
