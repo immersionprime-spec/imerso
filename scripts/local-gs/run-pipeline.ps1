@@ -1,4 +1,4 @@
-﻿# Pipeline local: video OU fotos -> COLMAP SfM sparse -> Brush -> scene.ply
+# Pipeline local: video OU fotos -> COLMAP SfM sparse -> Brush -> scene.ply
 #
 # Uso video:
 #   npm run gs:local -- -VideoPath "C:\caminho\video.mp4" -Transpose cw
@@ -25,7 +25,7 @@ param(
   [string]$PhotosPath = "",
   [string]$OutputDir = "",
   [int]$FrameRate = 0,        # 0 = auto; FrameRate manual e SEMPRE limitado pelo MaxFrames cap
-  [int]$MaxFrames = 350,      # cap DURO de frames - nunca ultrapassado, mesmo com -FrameRate explicito
+  [int]$MaxFrames = 500,      # cap DURO de frames - nunca ultrapassado, mesmo com -FrameRate explicito
   [int]$TotalSteps = 20000,
   [string]$Quality = "medium", # NUNCA "high": desabilita GPU SIFT, usa CPU Covariant (10x mais lento)
   [string]$TourId = $null,
@@ -40,6 +40,8 @@ param(
   [switch]$LoopClosureStrict,   # repassa --strict ao validator (exit 1 se warning); pipeline NAO aborta
   [switch]$AbortOnLowRegistration,  # aborta antes do Brush se COLMAP registrar < 50% (evita treino inutil)
   [double]$LowRegistrationThreshold = 0.50,
+  [switch]$StrictSfmQuality,              # P-NEW: aborta se sparse fragmentou OU registration_ratio < threshold
+  [double]$StrictSfmMinRegistration = 0.95,
   [int]$MaxImageSize = 0,           # se > 0, redimensiona colmap_ws/images/ in-place para esse lado maior antes do COLMAP (evita STATUS_STACK_BUFFER_OVERRUN em GPUs com pouca VRAM)
   [switch]$ForceCpuMatcher,         # forca pipeline manual com SIFT CPU matcher (estavel, mas ~5-10x mais lento)
   [switch]$GenerateYupPly,          # P10: gera splat/scene.yup.ply com R_x(180 graus) para compatibilidade com SuperSplat / Blender / Unity (Y up OpenGL)
@@ -61,6 +63,13 @@ param(
   [switch]$EnableReorder,       # P08: reordena .ply por importancia antes do .ksplat (TTR progressive)
   [switch]$GenerateLiteKsplat,  # P08: gera scene.lite.ksplat (~ratio) alem do full
   [double]$LiteKsplatRatio = 0.30,
+  [switch]$ValidateMidTrainingGrowth,          # P-NEW: valida que export_15000.ply tem >= MinGaussians15k
+  [int]$MinGaussians15k = 100000,
+  [switch]$KillSwitchEnabled,                 # P-NEW Fase2: mata brush_app em tempo real se congelar
+  [int]$KillSwitchCheckEverySec = 60,         # intervalo de polling do watcher (segundos)
+  [int]$KillSwitchMinGaussians15k = 100000,   # se export_15000 < este, mata
+  [int]$KillSwitchStallTolerance = 3,         # quantos exports consecutivos sem crescimento toleram
+  [double]$KillSwitchStallMinGrowthPct = 5.0, # crescimento minimo entre exports (%) para nao contar como stall
   [switch]$SkipTraining         # AI Advisor: encerra pipeline apos SfM+loop-closure; pula Brush e upload
 )
 
@@ -101,6 +110,20 @@ if ($photoMode) {
 } else {
   if (-not (Test-Path -LiteralPath $VideoPath)) {
     Write-Error "Video nao existe: $VideoPath"
+    $parent = Split-Path -Parent $VideoPath
+    $leaf = Split-Path -Leaf $VideoPath
+    if ($parent -and $leaf -and (Test-Path -LiteralPath $parent)) {
+      $sameName = @()
+      foreach ($sub in Get-ChildItem -LiteralPath $parent -Directory -ErrorAction SilentlyContinue) {
+        $candidate = Join-Path $sub.FullName $leaf
+        if (Test-Path -LiteralPath $candidate) { $sameName += $candidate }
+      }
+      if ($sameName.Count -gt 0) {
+        Write-Host "Dica: o ficheiro com o mesmo nome foi encontrado numa subpasta de '$parent':" -ForegroundColor Yellow
+        foreach ($p in $sameName) { Write-Host "  $p" -ForegroundColor Yellow }
+        Write-Host "Use -VideoPath com o caminho completo acima." -ForegroundColor Yellow
+      }
+    }
     exit 1
   }
 }
@@ -176,6 +199,33 @@ function Get-RegisteredImagesCount {
   }
 }
 
+# --- P-NEW Fase2: le 'element vertex N' do header de um .ply -----------------
+function Get-PlyVertexCount {
+  param([Parameter(Mandatory = $true)][string]$PlyPath)
+  if (-not (Test-Path -LiteralPath $PlyPath)) { return 0 }
+  try {
+    $fs = [System.IO.File]::OpenRead($PlyPath)
+    try {
+      $reader = New-Object System.IO.StreamReader($fs, [System.Text.Encoding]::ASCII, $false, 1024, $true)
+      $linesRead = 0
+      while (-not $reader.EndOfStream -and $linesRead -lt 60) {
+        $hline = $reader.ReadLine()
+        if ($hline -match '^element\s+vertex\s+(\d+)') {
+          $reader.Dispose()
+          return [int]$matches[1]
+        }
+        if ($hline -eq 'end_header') { break }
+        $linesRead++
+      }
+      $reader.Dispose()
+      return 0
+    } finally { $fs.Close() }
+  } catch {
+    return 0
+  }
+}
+# ------------------------------------------------------------------------------
+
 $GlomapAvailable = Test-GlomapAvailable
 $UseGlomap       = (-not $ForceColmapMapper) -and $GlomapAvailable
 # ─────────────────────────────────────────────────────────────────────────────
@@ -225,7 +275,7 @@ if ($SkipFrameSelection) {
     if ($effectiveFps -le 0) {
       # Modo auto: calcula FPS ideal pelo MaxFrames
       $rawFps = $MaxFrames / $durationSec
-      $effectiveFps = [math]::Round([math]::Max(0.5, [math]::Min(2.0, $rawFps)), 2)
+      $effectiveFps = [math]::Round([math]::Max(0.5, [math]::Min(3.0, $rawFps)), 2)
       Log "[1/5] Video: $([math]::Round($durationSec))s | FPS auto: $effectiveFps | Frames estimados: $([math]::Round($durationSec * $effectiveFps))"
     } else {
       # Modo manual: aplica cap de MaxFrames mesmo assim (BUG FIX)
@@ -423,15 +473,15 @@ $gdCfg      = Join-Path $modelsDir "groundingdino_swint_ogc.py"
 $gdWts      = Join-Path $modelsDir "groundingdino_swint_ogc.pth"
 
 if ($EnableSamMasking) {
-  Log "[1.5/5] SAM2 — mascaras de objetos moveis (Grounding DINO + SAM2)..."
+  Log "[1.5/5] SAM2 - mascaras de objetos moveis (Grounding DINO + SAM2)..."
   New-Item -ItemType Directory -Force -Path $masksDir | Out-Null
 
   if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
-    Write-Warning "[1.5/5] python nao encontrado — SAM2 ignorado."
+    Write-Warning "[1.5/5] python nao encontrado - SAM2 ignorado."
   } elseif (-not (Test-Path -LiteralPath $samScript)) {
-    Write-Warning "[1.5/5] sam2_masking.py ausente — SAM2 ignorado."
+    Write-Warning "[1.5/5] sam2_masking.py ausente - SAM2 ignorado."
   } elseif (-not (Test-Path -LiteralPath $samCkpt) -or -not (Test-Path -LiteralPath $gdCfg) -or -not (Test-Path -LiteralPath $gdWts)) {
-    Write-Warning "[1.5/5] Modelos SAM2/Grounding DINO ausentes em $modelsDir — SAM2 ignorado. Veja README."
+    Write-Warning "[1.5/5] Modelos SAM2/Grounding DINO ausentes em $modelsDir - SAM2 ignorado. Veja README."
   } else {
     $samArgs = @(
       $samScript,
@@ -460,7 +510,7 @@ if ($EnableSamMasking) {
         Log "  [1.5/5] sam2_report.json gerado ($maskCount mascaras PNG)."
       }
     } else {
-      Write-Warning "[1.5/5] SAM2 falhou (exit $samExit) ou sem PNGs — COLMAP segue sem mascaras."
+      Write-Warning "[1.5/5] SAM2 falhou (exit $samExit) ou sem PNGs - COLMAP segue sem mascaras."
       $SamUsed = $false
     }
   }
@@ -749,6 +799,26 @@ if ($allSparse.Count -gt 1) {
   }
 }
 
+# ─── STRICT SFM QUALITY GUARD (P-NEW) ──────────────────────────────────────
+# Aborta se: (a) SfM fragmentou em multiplos componentes, OU
+#           (b) registration_ratio < threshold (default 0.95)
+# Motivo: sparse pobre vira semente ruim no Brush. Treino de 60-75min sobre
+# semente ruim NUNCA recupera - apenas drena GPU. Evidencia: Run C deste
+# projeto treinou 75k steps e congelou em 29k gaussianos.
+if ($StrictSfmQuality) {
+  $fragmented   = ($allSparse.Count -gt 1)
+  $tempRatio    = if ($frameCount -gt 0) { [math]::Round($RegisteredImages / $frameCount, 4) } else { 0 }
+  $belowMin     = ($tempRatio -lt $StrictSfmMinRegistration)
+  if ($fragmented -or $belowMin) {
+    $thrPct = [math]::Round($StrictSfmMinRegistration * 100, 1)
+    Log "[2/5] STRICT-SFM ABORT: fragmented=$fragmented | registration=$([math]::Round($tempRatio * 100, 1))% (min=$thrPct%)"
+    Log "[2/5] Motivo: SfM ruim NUNCA e corrigido pelo Brush. Refaca a captura ou rode sem -StrictSfmQuality."
+    exit 3
+  }
+  Log "[2/5] STRICT-SFM OK: 1 componente, registration=$([math]::Round($tempRatio * 100, 1))% (>= $([math]::Round($StrictSfmMinRegistration * 100, 1))%)"
+}
+# ─────────────────────────────────────────────────────────────────────────────
+
 if (-not (Test-Path -LiteralPath $sparseDir)) {
   Log "ERRO: SfM nao gerou sparse/0/. Mapper: $UsedMapper. Veja: $logFile"
   exit 1
@@ -838,7 +908,7 @@ if (
 # Quando ativo, o advisor consulta mapping_report.json e loop_closure_report.json
 # antes de decidir se vale a pena gastar 30-40 min no Brush.
 if ($SkipTraining) {
-  Log "=== SfM CONCLUIDO — -SkipTraining ativo: Brush e upload pulados ==="
+  Log "=== SfM CONCLUIDO (SkipTraining): Brush e upload pulados ==="
   Log "=== Verifique mapping_report.json e loop_closure_report.json antes de prosseguir ==="
   exit 0
 }
@@ -854,17 +924,174 @@ switch ($Trainer) {
   'brush' {
     $effBrushSteps = if ($TrainerIterations -gt 0) { $TrainerIterations } else { $TotalSteps }
     Log "[3/5] Brush (treino $effBrushSteps steps + export .ply)..."
-    & brush_app $colmapDir `
-        --total-steps    $effBrushSteps `
-        --export-path    $splatDir `
-        --max-resolution 1920 *>&1 | ForEach-Object {
-      $line = "$_"; Write-Host $line
-      Add-Content -Path $logFile -Value $line -Encoding UTF8
+
+    if ($KillSwitchEnabled) {
+      # --- KILL SWITCH MODE (Fase 2) -----------------------------------------
+      # Roda brush_app como processo filho monitoravel e um watcher paralelo
+      # que mata o processo se detectar congelamento via exports intermediarios.
+      Log "[3/5] KILL-SWITCH ATIVO: check a cada $KillSwitchCheckEverySec s | min_15k=$KillSwitchMinGaussians15k | stall_tolerance=$KillSwitchStallTolerance"
+
+      $brushStdout = Join-Path $splatDir "_brush_stdout.log"
+      $brushStderr = Join-Path $splatDir "_brush_stderr.log"
+      Remove-Item -LiteralPath $brushStdout -Force -ErrorAction SilentlyContinue
+      Remove-Item -LiteralPath $brushStderr -Force -ErrorAction SilentlyContinue
+
+      $brushProc = Start-Process -FilePath "brush_app" `
+          -ArgumentList @($colmapDir, "--total-steps", $effBrushSteps, "--export-path", $splatDir, "--max-resolution", "1920") `
+          -NoNewWindow -PassThru `
+          -RedirectStandardOutput $brushStdout `
+          -RedirectStandardError  $brushStderr
+
+      Log "[3/5] brush_app PID=$($brushProc.Id) iniciado. Watcher entra em loop."
+
+      $stallCount        = 0
+      $lastVertexCount   = 0
+      $lastExportChecked = ""
+      $killReason        = $null
+      $watcherIterations = 0
+
+      while (-not $brushProc.HasExited) {
+        Start-Sleep -Seconds $KillSwitchCheckEverySec
+        $watcherIterations++
+
+        # Lista exports atuais ordenados por numero do step
+        $exports = Get-ChildItem -LiteralPath $splatDir -Filter "export_*.ply" -ErrorAction SilentlyContinue |
+                   Sort-Object Name
+        if (-not $exports -or $exports.Count -eq 0) {
+          Log "  [watcher #$watcherIterations] Sem exports ainda. Aguardando."
+          continue
+        }
+
+        $latest = $exports | Select-Object -Last 1
+        if ($latest.FullName -eq $lastExportChecked) {
+          # Mesmo arquivo da iteracao anterior - nada novo escrito ainda
+          continue
+        }
+        $lastExportChecked = $latest.FullName
+
+        # Extrai step do nome (export_15000.ply -> 15000)
+        $stepNum = 0
+        if ($latest.Name -match 'export_(\d+)\.ply') { $stepNum = [int]$matches[1] }
+
+        $currentN = Get-PlyVertexCount -PlyPath $latest.FullName
+        Log "  [watcher #$watcherIterations] step=$stepNum gaussianos=$currentN (anterior=$lastVertexCount)"
+
+        # Trava 1: aos 15k, exigir >= KillSwitchMinGaussians15k
+        if ($stepNum -ge 15000 -and $currentN -gt 0 -and $currentN -lt $KillSwitchMinGaussians15k) {
+          $killReason = "step_15k_below_min: $currentN < $KillSwitchMinGaussians15k"
+          break
+        }
+
+        # Trava 2: stall - exports consecutivos sem crescimento > stall_min_growth_pct
+        if ($lastVertexCount -gt 0 -and $currentN -gt 0) {
+          $growthPct = (($currentN - $lastVertexCount) / [double]$lastVertexCount) * 100.0
+          if ($growthPct -lt $KillSwitchStallMinGrowthPct) {
+            $stallCount++
+            Log "  [watcher #$watcherIterations] STALL detectado ($stallCount/$KillSwitchStallTolerance): crescimento=$([math]::Round($growthPct, 2))%"
+            if ($stallCount -ge $KillSwitchStallTolerance) {
+              $killReason = "stall: $stallCount exports consecutivos com crescimento < $KillSwitchStallMinGrowthPct% (ultimo=$currentN gaussianos)"
+              break
+            }
+          } else {
+            $stallCount = 0
+          }
+        }
+
+        $lastVertexCount = $currentN
+      }
+
+      if ($killReason) {
+        Log "[3/5] KILL SWITCH DISPARADO: $killReason"
+        Log "[3/5] Matando brush_app (PID=$($brushProc.Id))..."
+        try {
+          Stop-Process -Id $brushProc.Id -Force -ErrorAction Stop
+          Start-Sleep -Seconds 2
+          Log "[3/5] brush_app terminado pelo watcher."
+        } catch {
+          Log "[3/5] AVISO: falha ao matar brush_app ($($_.Exception.Message))"
+        }
+        # Concatena stdout/stderr do brush no log principal antes de sair
+        if (Test-Path -LiteralPath $brushStdout) {
+          Get-Content -LiteralPath $brushStdout -ErrorAction SilentlyContinue |
+            ForEach-Object { Add-Content -Path $logFile -Value $_ -Encoding UTF8 }
+        }
+        if (Test-Path -LiteralPath $brushStderr) {
+          Get-Content -LiteralPath $brushStderr -ErrorAction SilentlyContinue |
+            ForEach-Object { Add-Content -Path $logFile -Value $_ -Encoding UTF8 }
+        }
+        Log "[3/5] Recomendacao: SfM produziu semente pobre. Refaca a captura ou use -StrictSfmQuality."
+        exit 5
+      }
+
+      # Brush terminou naturalmente - concatena logs e checa exit code
+      if (Test-Path -LiteralPath $brushStdout) {
+        Get-Content -LiteralPath $brushStdout -ErrorAction SilentlyContinue |
+          ForEach-Object { Add-Content -Path $logFile -Value $_ -Encoding UTF8 }
+      }
+      if (Test-Path -LiteralPath $brushStderr) {
+        Get-Content -LiteralPath $brushStderr -ErrorAction SilentlyContinue |
+          ForEach-Object { Add-Content -Path $logFile -Value $_ -Encoding UTF8 }
+      }
+      if ($brushProc.ExitCode -ne 0) {
+        Log "ERRO em brush_app (codigo $($brushProc.ExitCode))"
+        exit 1
+      }
+      Log "[3/5] brush_app terminou naturalmente. Watcher fez $watcherIterations checks."
+
+    } else {
+      # --- MODO ORIGINAL (sem kill switch) -----------------------------------
+      & brush_app $colmapDir `
+          --total-steps    $effBrushSteps `
+          --export-path    $splatDir `
+          --max-resolution 1920 *>&1 | ForEach-Object {
+        $line = "$_"; Write-Host $line
+        Add-Content -Path $logFile -Value $line -Encoding UTF8
+      }
+      if ($LASTEXITCODE -ne 0) { Log "ERRO em brush_app (codigo $LASTEXITCODE)"; exit 1 }
     }
-    if ($LASTEXITCODE -ne 0) { Log "ERRO em brush_app (codigo $LASTEXITCODE)"; exit 1 }
     $lastPly = Get-ChildItem -LiteralPath $splatDir -Filter "export_*.ply" |
                Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if (-not $lastPly) { Log "ERRO: Nenhum export_*.ply em $splatDir"; exit 1 }
+    # ─── MID-TRAINING GROWTH CHECK (P-NEW) ──────────────────────────────────
+    # Valida que o Brush densificou o suficiente ate o step 15k.
+    # Se export_15000.ply tem < MinGaussians15k gaussianos, a semente do SfM
+    # era pobre e steps adicionais nao recuperam. Marca o run como suspeito.
+    if ($ValidateMidTrainingGrowth) {
+      $mid15kPly = Join-Path $splatDir "export_15000.ply"
+      if (Test-Path -LiteralPath $mid15kPly) {
+        $midN = 0
+        try {
+          $fs = [System.IO.File]::OpenRead($mid15kPly)
+          try {
+            $reader = New-Object System.IO.StreamReader($fs, [System.Text.Encoding]::ASCII, $false, 1024, $true)
+            $headerText = ""
+            $linesRead = 0
+            while (-not $reader.EndOfStream -and $linesRead -lt 60) {
+              $hline = $reader.ReadLine()
+              $headerText += "$hline`n"
+              if ($hline -match '^element\s+vertex\s+(\d+)') { $midN = [int]$matches[1] }
+              if ($hline -eq 'end_header') { break }
+              $linesRead++
+            }
+            $reader.Dispose()
+          } finally { $fs.Close() }
+        } catch { Log "  [AVISO] Falha ao ler header de export_15000.ply ($($_.Exception.Message))" }
+
+        if ($midN -gt 0 -and $midN -lt $MinGaussians15k) {
+          Log "[3/5] GROWTH-CHECK FALHOU: export_15000.ply tem $midN gaussianos (< $MinGaussians15k)."
+          Log "[3/5] Causa provavel: SfM produziu sparse pobre. Steps adicionais NAO corrigem isso."
+          Log "[3/5] Recomendacao: refaca a captura ou rode com -StrictSfmQuality para detectar antes do treino."
+          exit 4
+        } elseif ($midN -gt 0) {
+          Log "[3/5] GROWTH-CHECK OK: export_15000.ply tem $midN gaussianos (>= $MinGaussians15k)."
+        } else {
+          Log "[3/5] GROWTH-CHECK SKIP: nao consegui ler vertex count de export_15000.ply."
+        }
+      } else {
+        Log "[3/5] GROWTH-CHECK SKIP: export_15000.ply nao existe (steps < 15000 ou Brush nao exportou intermediarios)."
+      }
+    }
+    # ─────────────────────────────────────────────────────────────────────────
     $finalPly = Join-Path $splatDir "scene.ply"
     Copy-Item -LiteralPath $lastPly.FullName -Destination $finalPly -Force
     $plyMb    = [math]::Round($lastPly.Length / 1MB, 1)

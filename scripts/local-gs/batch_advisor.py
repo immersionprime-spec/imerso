@@ -86,6 +86,106 @@ Responda com JSON exatamente neste formato (sem texto fora do JSON):
 """
 
 
+def run_sfm_only(video_path: Path, output_dir: Path, args) -> dict:
+    """Roda apenas o SfM (sem Brush) via run-pipeline.ps1 -SkipTraining.
+    Retorna metricas de qualidade do SfM para decidir se vale treinar."""
+    ps1 = Path(__file__).parent / "run-pipeline.ps1"
+    cmd = [
+        "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(ps1),
+        "-VideoPath",  str(video_path),
+        "-OutputDir",  str(output_dir),
+        "-SkipTraining",
+    ]
+    if args.skip_frame_selection:
+        cmd.append("-SkipFrameSelection")
+    if args.max_image_size > 0:
+        cmd += ["-MaxImageSize", str(args.max_image_size)]
+    if args.force_colmap:
+        cmd.append("-ForceColmapMapper")
+
+    subprocess.run(cmd, text=True)
+
+    mapping  = read_json_safe(output_dir / "mapping_report.json")
+    loop     = read_json_safe(output_dir / "loop_closure_report.json")
+
+    reg_ratio   = mapping.get("registration_ratio", 0)
+    lc_ratio    = loop.get("normalized_distance", 999)
+    lc_angle    = loop.get("angle_deg", 999)
+    n_images    = mapping.get("num_images_registered", 0)
+    fragmented  = mapping.get("num_components", 1) > 1
+
+    # Criterio: aprova se registro >= 70% E loop closure razoavel
+    approved = (
+        reg_ratio >= 0.70 and
+        lc_ratio  <= 20.0 and
+        lc_angle  <= 30.0 and
+        not fragmented
+    )
+
+    return {
+        "video":         video_path.name,
+        "output_dir":    str(output_dir),
+        "reg_ratio":     reg_ratio,
+        "lc_ratio":      lc_ratio,
+        "lc_angle":      lc_angle,
+        "n_images":      n_images,
+        "fragmented":    fragmented,
+        "sfm_approved":  approved,
+    }
+
+
+def run_training_only(video_path: Path, output_dir: Path, args) -> dict:
+    """Roda apenas o Brush (assume SfM ja feito em output_dir).
+    Retorna resultado completo via advisor."""
+    # Advisor com --force-colmap desligado para nao re-rodar SfM
+    cmd = [sys.executable, str(ADVISOR_PY),
+        "--video",       str(video_path),
+        "--output-dir",  str(output_dir),
+        "--steps",       str(args.steps),
+        "--frame-count", str(args.frame_count),
+        "--min-sharpness", str(args.min_sharpness),
+        "--max-iterations", "1",
+    ]
+    if args.api_key:              cmd += ["--api-key", args.api_key]
+    if args.skip_frame_selection: cmd.append("--skip-frame-selection")
+    if args.max_image_size > 0:   cmd += ["--max-image-size", str(args.max_image_size)]
+    # Sem --force-colmap: reutiliza SfM existente
+
+    subprocess.run(cmd, text=True)
+
+    history_path = output_dir / "ai_advisor_history.json"
+    history = []
+    if history_path.exists():
+        try:
+            history = json.loads(history_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    training_eval = next((h["eval"] for h in history if h.get("checkpoint") == "post_training"), {})
+    ksplat_path   = output_dir / "splat" / "scene.ksplat"
+    ply_path      = output_dir / "splat" / "scene.ply"
+
+    return {
+        "video":       video_path.name,
+        "output_dir":  str(output_dir),
+        "final_score": training_eval.get("quality_score", 0),
+        "approved":    training_eval.get("approve_for_upload", False),
+        "assessment":  training_eval.get("assessment", ""),
+        "ksplat_path": str(ksplat_path) if ksplat_path.exists() else None,
+        "ksplat_mb":   round(ksplat_path.stat().st_size / 1_048_576, 1) if ksplat_path.exists() else 0,
+        "ply_mb":      round(ply_path.stat().st_size    / 1_048_576, 1) if ply_path.exists()    else 0,
+        "mapping_report":  read_json_safe(output_dir / "mapping_report.json"),
+        "loop_closure":    read_json_safe(output_dir / "loop_closure_report.json"),
+        "sfm_score":       0,
+        "sfm_approved":    True,
+        "sfm_assessment":  "",
+        "sfm_issues":      [],
+        "mobile":          training_eval.get("mobile_readiness", "?"),
+        "pipeline_ok":     True,
+    }
+
+
+
 def run_advisor(video_path: Path, output_dir: Path, args) -> dict:
     """Roda o ai_pipeline_advisor.py para um video. Retorna resumo do resultado."""
     cmd = [sys.executable, str(ADVISOR_PY),
@@ -116,7 +216,7 @@ def run_advisor(video_path: Path, output_dir: Path, args) -> dict:
 
     # Extrair scores do historico
     sfm_eval      = next((h["eval"] for h in history if h["checkpoint"] == "post_sfm"),      {})
-    training_eval = next((h["eval"] for h in history if h["checkpoint"] == "post_training"), {})
+    training_eval = next((h["eval"] for h in history if h.get("checkpoint") == "post_training"), {})
 
     ksplat_path = output_dir / "splat" / "scene.ksplat"
     ply_path    = output_dir / "splat" / "scene.ply"
@@ -210,28 +310,82 @@ def run_batch(args):
     results      = []
     skipped_sfm  = 0
 
-    for idx, video in enumerate(videos, 1):
-        print(f"\n{'~'*60}")
-        print(f"  VIDEO {idx}/{len(videos)}: {video.name}")
-        print(f"{'~'*60}")
+    # ── FASE 1: SfM em todos os videos (rapido, ~2 min cada) ──────────────
+    if args.skip_bad_sfm:
+        sfm_results = []
+        print(f"\n{'='*60}")
+        print(f"  FASE 1/2 — SfM em todos os {len(videos)} videos")
+        print(f"  (Brush so roda nos aprovados)")
+        print(f"{'='*60}")
 
-        out_dir = batch_dir / video.stem
-        out_dir.mkdir(parents=True, exist_ok=True)
+        for idx, video in enumerate(videos, 1):
+            print(f"\n  [{idx}/{len(videos)}] SfM: {video.name}")
+            out_dir = batch_dir / video.stem
+            out_dir.mkdir(parents=True, exist_ok=True)
+            sfm = run_sfm_only(video, out_dir, args)
+            sfm_results.append(sfm)
+            status = "✓ APROVADO" if sfm["sfm_approved"] else "✗ REJEITADO"
+            print(f"  >> {video.name}: reg={sfm['reg_ratio']:.0%} | lc_dist={sfm['lc_ratio']:.1f}x | lc_ang={sfm['lc_angle']:.0f}° | {status}")
 
-        result = run_advisor(video, out_dir, args)
-        results.append(result)
+        approved_videos = [(v, batch_dir / v.stem) for v, s in zip(videos, sfm_results) if s["sfm_approved"]]
+        rejected = len(videos) - len(approved_videos)
 
-        # Linha de resumo imediato
-        sfm_ok = "OK" if result["sfm_approved"] else "RUIM"
-        trained = "treinado" if result["ply_mb"] > 0 else "pulado"
-        print(f"\n  >> {video.name}: SfM={sfm_ok} | Final score={result['final_score']}/10 | {trained} | ksplat={result['ksplat_mb']} MB")
+        print(f"\n  FASE 1 CONCLUIDA: {len(approved_videos)} aprovados, {rejected} rejeitados (SfM ruim)")
 
-        if not result["sfm_approved"]:
-            skipped_sfm += 1
+        if not approved_videos:
+            print("\n  NENHUM VIDEO PASSOU NO SfM. Verifique a captura (loop closure).")
+            # Pega o menos ruim pelo maior reg_ratio
+            best_sfm = max(sfm_results, key=lambda s: s["reg_ratio"])
+            approved_videos = [(v, batch_dir / v.stem) for v in videos if v.name == best_sfm["video"]]
+            print(f"  Forcando treino do menos ruim: {best_sfm['video']} (reg={best_sfm['reg_ratio']:.0%})")
 
-        # Salva resultado parcial (util se o batch for interrompido)
-        partial = batch_dir / "results_partial.json"
-        partial.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+        # ── FASE 2: Brush apenas nos aprovados ────────────────────────────
+        print(f"\n{'='*60}")
+        print(f"  FASE 2/2 — Treinando {len(approved_videos)} video(s) aprovados")
+        print(f"{'='*60}")
+
+        for idx, (video, out_dir) in enumerate(approved_videos, 1):
+            print(f"\n  [{idx}/{len(approved_videos)}] Treinando: {video.name}")
+            result = run_training_only(video, out_dir, args)
+            results.append(result)
+            print(f"  >> {video.name}: score={result['final_score']}/10 | ksplat={result['ksplat_mb']} MB")
+            partial = batch_dir / "results_partial.json"
+            partial.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+
+        # Adiciona rejeitados ao results com score 0 para o ranking ser completo
+        approved_names = {v.name for v, _ in approved_videos}
+        for sfm in sfm_results:
+            if sfm["video"] not in approved_names:
+                results.append({
+                    "video": sfm["video"],
+                    "output_dir": str(batch_dir / Path(sfm["video"]).stem),
+                    "pipeline_ok": False,
+                    "sfm_score": 0, "sfm_approved": False,
+                    "sfm_assessment": f"Rejeitado na Fase 1: reg={sfm['reg_ratio']:.0%}, lc={sfm['lc_ratio']:.1f}x",
+                    "sfm_issues": ["loop_closure_ruim"],
+                    "final_score": 0, "approved": False, "mobile": "N/A",
+                    "assessment": "Nao treinado — SfM reprovado.",
+                    "ksplat_path": None, "ksplat_mb": 0, "ply_mb": 0,
+                    "mapping_report": {}, "loop_closure": {},
+                })
+
+    else:
+        # Modo original: pipeline completo para cada video
+        for idx, video in enumerate(videos, 1):
+            print(f"\n{'~'*60}")
+            print(f"  VIDEO {idx}/{len(videos)}: {video.name}")
+            print(f"{'~'*60}")
+            out_dir = batch_dir / video.stem
+            out_dir.mkdir(parents=True, exist_ok=True)
+            result = run_advisor(video, out_dir, args)
+            results.append(result)
+            sfm_ok  = "OK" if result["sfm_approved"] else "RUIM"
+            trained = "treinado" if result["ply_mb"] > 0 else "pulado"
+            print(f"\n  >> {video.name}: SfM={sfm_ok} | score={result['final_score']}/10 | {trained} | ksplat={result['ksplat_mb']} MB")
+            if not result["sfm_approved"]:
+                skipped_sfm += 1
+            partial = batch_dir / "results_partial.json"
+            partial.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
 
     # Eleicao do vencedor
     print(f"\n{'='*60}")
@@ -282,12 +436,13 @@ def main():
     p.add_argument("--folder",    required=True,  help="Pasta com os videos .MP4")
     p.add_argument("--api-key",   default="",     help="Anthropic API key")
     p.add_argument("--steps",     type=int,   default=60000, help="TotalSteps do Brush")
-    p.add_argument("--frame-count", type=int, default=200)
+    p.add_argument("--frame-count", type=int, default=500)
     p.add_argument("--min-sharpness", type=float, default=80.0)
     p.add_argument("--output-root", default="output", help="Pasta raiz dos outputs")
     p.add_argument("--force-colmap",         action="store_true")
     p.add_argument("--skip-frame-selection", action="store_true")
     p.add_argument("--skip-upload",          action="store_true", default=True)
+    p.add_argument("--skip-bad-sfm",         action="store_true", help="Fase 1: roda SfM em todos, treina so os aprovados (economiza GPU)")
     p.add_argument("--max-image-size", type=int, default=2400, help="Resolucao maxima para COLMAP (default: 2400 — estabilidade GoPro HERO11)")
     p.add_argument("--max-videos", type=int, default=0, help="Limitar a N videos (0 = todos)")
     run_batch(p.parse_args())

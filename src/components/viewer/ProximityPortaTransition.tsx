@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { SplatViewerAPI } from './SplatViewer';
 import type { PublicTourPayload } from '@/types/public-tour';
 
@@ -78,7 +79,9 @@ function lateralDist(
 }
 
 export function ProximityPortaTransition({ api, waypoints, currentTourId, viewerReady }: ProximityPortaTransitionProps) {
+  const t = useTranslations('viewer');
   const [fading, setFading] = useState(false);
+  const [transitionLabel, setTransitionLabel] = useState<string | null>(null);
   const triggeredRef = useRef(false);
   const activeRef = useRef(false);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -164,6 +167,7 @@ export function ProximityPortaTransition({ api, waypoints, currentTourId, viewer
           continue;
         }
 
+        setTransitionLabel(wp.label ?? null);
         triggeredRef.current = true;
         setFading(true);
         const href = `${wp.next_tour_href!}?from=${encodeURIComponent(currentTourId)}`;
@@ -187,8 +191,23 @@ export function ProximityPortaTransition({ api, waypoints, currentTourId, viewer
     <div
       ref={overlayRef}
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-[9998] bg-black opacity-0"
+      className="pointer-events-none fixed inset-0 z-[9998] flex flex-col items-center justify-center gap-4 bg-black opacity-0"
       style={{ transition: `opacity ${FADE_DURATION_MS}ms ease-in` }}
-    />
+    >
+      {transitionLabel ? (
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-white/10">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" aria-hidden>
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M9 21V12a3 3 0 0 1 6 0v9" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-widest text-white/40">{t('transition_entering')}</p>
+            <p className="mt-1 text-xl font-medium text-white/90">{transitionLabel}</p>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }

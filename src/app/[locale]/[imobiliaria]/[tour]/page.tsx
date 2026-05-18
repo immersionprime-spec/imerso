@@ -29,14 +29,39 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
   const { tour: tr, imobiliaria: im } = result.data;
   const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? '';
+  const valorStr = tr.valor ? formatBrlShort(tr.valor) : null;
+  const descParts = [
+    tr.quartos != null ? `${tr.quartos} quartos` : null,
+    tr.area_m2 != null ? `${tr.area_m2}m²` : null,
+    tr.bairro ?? null,
+    valorStr ?? null,
+  ].filter(Boolean);
+  const ogDescription = descParts.join(' · ');
+  const ogTitle = `${tr.titulo} | ${im.nome}`;
+  const ogImageUrl = base ? `${base}/api/og/${imobiliaria}/${tourSlug}` : `/api/og/${imobiliaria}/${tourSlug}`;
+
   return {
-    title: `${tr.titulo} — ${im.nome}`,
-    description: (tr.descricao ?? '').slice(0, 160),
+    title: ogTitle,
+    description: ogDescription || 'Tour virtual 3D imersivo — explore este imóvel agora.',
     openGraph: {
-      title: tr.valor ? `${tr.titulo} — ${formatBrlShort(tr.valor)}` : tr.titulo,
-      description: tr.descricao ?? undefined,
-      ...(base ? { images: [`${base}/api/og/${imobiliaria}/${tourSlug}`] } : {}),
+      title: ogTitle,
+      description: ogDescription || 'Tour virtual 3D imersivo.',
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: tr.titulo,
+        },
+      ],
       type: 'website',
+      locale: 'pt_BR',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: ogTitle,
+      description: ogDescription || 'Tour virtual 3D imersivo.',
+      images: [ogImageUrl],
     },
   };
 }

@@ -17,11 +17,12 @@ O pipeline transforma um vídeo de celular (ou pasta de fotos) em dois arquivos 
 - GPU NVIDIA com CUDA (RTX série 3000+, 4000+ ou 5000+)
 - Node.js ≥ 20.18.0 LTS
 - ffmpeg (extração de frames do vídeo)
-- COLMAP 4.1 CUDA (Structure-from-Motion esparso)
+- **COLMAP 3.11.1** CUDA (Structure-from-Motion esparso) — **não** usar COLMAP 3.12+ com Brush 0.3.0; ver `scripts/local-gs/README.md` («STACK FIXA») e `AGENT_CONTEXT.md`
 - Brush v0.3.0 (`brush_app.exe`) (treinamento Gaussian Splatting)
 
 **Localização dos arquivos:**
 - Script principal: `scripts/local-gs/run-pipeline.ps1`
+- Contexto curto para agentes (takeaways + pinagem): `scripts/local-gs/AGENT_CONTEXT.md`
 - Conversor .ksplat: `tools/gs3d-source/util/create-ksplat.js` (repo clonado à parte)
 - Upload automático: `scripts/local-gs/upload-and-finalize.mjs`
 - Este README: `scripts/local-gs/README.md`
@@ -45,7 +46,7 @@ node --version
 
 Se qualquer uma falhar:
 - **ffmpeg**: baixar em https://ffmpeg.org/download.html, extrair, adicionar `bin/` ao PATH
-- **COLMAP**: baixar binário CUDA em https://github.com/colmap/colmap/releases (v4.1), adicionar ao PATH
+- **COLMAP**: baixar binário CUDA **3.11.1** em https://github.com/colmap/colmap/releases (procurar tag 3.11.1 — **não** instalar 3.12+ com Brush 0.3.0; ver `README.md` «STACK FIXA»), adicionar ao PATH
 - **brush_app**: baixar em https://github.com/ArthurBrussee/brush/releases (v0.3.0 Windows), adicionar ao PATH
 - **node**: instalar em https://nodejs.org (LTS)
 

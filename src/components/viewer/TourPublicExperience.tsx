@@ -20,6 +20,10 @@ import { ElevationSlider } from './ElevationSlider';
 import { PortaButtons } from './PortaButtons';
 import { WaypointLabels } from './WaypointLabels';
 import { ProximityPortaTransition } from './ProximityPortaTransition';
+import { NavigationHint } from './NavigationHint';
+import { PropertySummaryCard } from './PropertySummaryCard';
+import { ShareNudge } from './ShareNudge';
+import { AmbientAudio } from './AmbientAudio';
 
 interface TourPublicExperienceProps {
   data: PublicTourPayload;
@@ -45,7 +49,10 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
   const [infoOpen, setInfoOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const [minimapOpen, setMinimapOpen] = useState(false);
+  const [minimapOpen, setMinimapOpen] = useState(true);
+  const [showNavHint, setShowNavHint] = useState(false);
+  const [showShareNudge, setShowShareNudge] = useState(false);
+  const shareNudgeDismissedRef = useRef(false);
   const [entryOverlayVisible, setEntryOverlayVisible] = useState(false);
   const [showTransitionLoading, setShowTransitionLoading] = useState(false);
   const transitionTimerRef = useRef<number | null>(null);
@@ -135,6 +142,26 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
     document.addEventListener('fullscreenchange', onFs);
     return () => document.removeEventListener('fullscreenchange', onFs);
   }, []);
+
+  useEffect(() => {
+    if (!loadingOverlay && !cameFromRef.current) {
+      setShowNavHint(true);
+    }
+  }, [loadingOverlay]);
+
+  useEffect(() => {
+    if (loadingOverlay || !viewerReady) return;
+    const nudgeTimer = window.setTimeout(() => {
+      if (!shareNudgeDismissedRef.current) {
+        setShowShareNudge(true);
+        window.setTimeout(() => {
+          setShowShareNudge(false);
+          shareNudgeDismissedRef.current = true;
+        }, 10_000);
+      }
+    }, 90_000);
+    return () => window.clearTimeout(nudgeTimer);
+  }, [loadingOverlay, viewerReady]);
 
   const hasLite = Boolean(data.tour.splat_url_lite);
 
@@ -236,13 +263,34 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
     setMoveSpeed(s);
   }, []);
 
+  const handleScreenshot = useCallback(async () => {
+    try {
+      const blob = await api?.takeScreenshot();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'imerso-tour.png';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      /* ignore */
+    }
+  }, [api]);
+
   const cinematicWaypoints = data.waypoints.filter((w) => !w.next_tour_id);
   const showCinematic =
     data.tour.has_cinematic_mode && cinematicWaypoints.length >= 2;
 
   return (
     <div className="relative min-h-dvh w-full bg-background">
-      <LoadingScreen visible={loadingOverlay} progress={loadProgress} />
+      <LoadingScreen
+        visible={loadingOverlay}
+        progress={loadProgress}
+        coverImageUrl={data.tour.foto_capa_url}
+        tourTitle={data.tour.titulo}
+      />
+      <NavigationHint visible={showNavHint} onDismiss={() => setShowNavHint(false)} />
       <div className="absolute inset-0">
         <SplatViewer
           splatUrl={data.tour.splat_url}
@@ -274,7 +322,10 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
         onInfo={() => setInfoOpen(true)}
         moveSpeed={moveSpeed}
         onMoveSpeedChange={onMoveSpeedChange}
-        onShare={() => setShareOpen(true)}
+        onShare={() => {
+          setShowShareNudge(false);
+          setShareOpen(true);
+        }}
         isFullscreen={fullscreen}
         minimapOpen={minimapOpen}
         onMinimapToggle={() => setMinimapOpen((v) => !v)}
@@ -284,7 +335,24 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
         }}
       />
       <InfoPanel open={infoOpen} onOpenChange={setInfoOpen} data={data} />
-      <ShareTourDialog open={shareOpen} onOpenChange={setShareOpen} url={shareUrl} />
+      <ShareTourDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        url={shareUrl}
+        onScreenshot={handleScreenshot}
+      />
+      <ShareNudge
+        visible={showShareNudge}
+        onShare={() => {
+          setShowShareNudge(false);
+          setShareOpen(true);
+          shareNudgeDismissedRef.current = true;
+        }}
+        onDismiss={() => {
+          setShowShareNudge(false);
+          shareNudgeDismissedRef.current = true;
+        }}
+      />
       {phone ? <WhatsAppFloating phone={phoneRaw} message={messageForLink} tourId={data.tour.id} /> : null}
       {detailLoading ? (
         <div
@@ -295,7 +363,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
           {t('detail_loading_badge')}
         </div>
       ) : null}
-      <div className="pointer-events-none fixed bottom-3 left-3 z-20 rounded-md glass px-3 py-1.5 text-[10px] text-text-muted sm:text-xs">
+      <div className="pointer-events-none fixed left-1/2 top-3 z-10 -translate-x-1/2 rounded-md glass px-3 py-1.5 text-[10px] text-text-muted opacity-50 transition-opacity duration-200 hover:opacity-80 sm:text-xs">
         Powered by Imerso
       </div>
       {data.imobiliaria.logo_url ? (
@@ -304,6 +372,38 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
           <img src={data.imobiliaria.logo_url} alt="" className="max-h-10 w-auto opacity-90 sm:max-h-12" />
         </div>
       ) : null}
+
+      {!loadingOverlay ? (
+        <button
+          type="button"
+          onClick={() => setInfoOpen(true)}
+          className={`fixed left-3 z-20 flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 backdrop-blur-sm transition-opacity hover:bg-black/70 sm:left-4 ${
+            data.imobiliaria.logo_url ? 'top-28 sm:top-32' : 'top-16 sm:top-20'
+          }`}
+          aria-label="Ver informações do imóvel"
+        >
+          {data.corretor?.foto_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={data.corretor.foto_url}
+              alt=""
+              className="h-6 w-6 shrink-0 rounded-full border border-white/20 object-cover"
+            />
+          ) : (
+            <div className="h-6 w-6 shrink-0 rounded-full border border-white/20 bg-white/10" />
+          )}
+          <div className="flex flex-col leading-none">
+            <span className="max-w-[140px] truncate text-[11px] font-medium text-white">
+              {data.corretor?.nome ?? data.imobiliaria.nome}
+            </span>
+            <span className="max-w-[140px] truncate text-[10px] text-white/50">{data.tour.titulo}</span>
+          </div>
+        </button>
+      ) : null}
+
+      <PropertySummaryCard tour={data.tour} onExpand={() => setInfoOpen(true)} visible={!loadingOverlay} />
+
+      <AmbientAudio audioUrl={null} />
 
       {cameFromRef.current ? (
         <div

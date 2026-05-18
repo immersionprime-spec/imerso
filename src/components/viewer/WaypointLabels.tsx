@@ -18,6 +18,16 @@ interface LabelState {
   visible: boolean;
 }
 
+interface DirectionIndicator {
+  id: string;
+  label: string;
+  sx: number;
+  sy: number;
+  visible: boolean;
+  opacity: number;
+  isClose: boolean;
+}
+
 function dist3d(
   ax: number,
   ay: number,
@@ -39,6 +49,7 @@ const POLL_MS = 200;
 
 export function WaypointLabels({ api, waypoints }: WaypointLabelsProps) {
   const [labels, setLabels] = useState<LabelState[]>([]);
+  const [indicators, setIndicators] = useState<DirectionIndicator[]>([]);
 
   const portaWaypoints = waypoints.filter((w) => w.next_tour_id && w.label);
 
@@ -76,15 +87,47 @@ export function WaypointLabels({ api, waypoints }: WaypointLabelsProps) {
       }
 
       setLabels(next);
+
+      const newIndicators: DirectionIndicator[] = [];
+
+      for (const wp of portaWaypoints) {
+        const dist = dist3d(cx, cy, cz, wp.position_x, wp.position_y, wp.position_z);
+        const labelDist = wp.label_distance ?? 3.0;
+        const longRangeDist = labelDist * 5;
+
+        if (dist > longRangeDist) continue;
+
+        const isClose = dist <= labelDist;
+        if (isClose) continue;
+
+        const proj = api.worldToScreen(wp.position_x, wp.position_y, wp.position_z);
+        if (!proj || !proj.visible) continue;
+
+        const opacity = Math.min(0.8, (longRangeDist - dist) / (longRangeDist * 0.6));
+        if (opacity <= 0) continue;
+
+        newIndicators.push({
+          id: wp.id,
+          label: wp.label!,
+          sx: proj.sx,
+          sy: proj.sy,
+          visible: true,
+          opacity,
+          isClose,
+        });
+      }
+
+      setIndicators(newIndicators);
     }, POLL_MS);
 
     return () => window.clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, portaWaypoints.length]);
 
-  if (labels.length === 0) return null;
+  if (labels.length === 0 && indicators.length === 0) return null;
 
   return (
+    <>
     <div className="pointer-events-none absolute inset-0 z-20" aria-hidden>
       {labels.map((l) => (
         <div
@@ -117,6 +160,76 @@ export function WaypointLabels({ api, waypoints }: WaypointLabelsProps) {
         </div>
       ))}
     </div>
+    {indicators.length > 0 ? (
+      <div className="pointer-events-none absolute inset-0 z-[19]" aria-hidden>
+        {indicators.map((ind) => (
+          <div
+            key={`dir-${ind.id}`}
+            style={{
+              position: 'absolute',
+              left: ind.sx,
+              top: ind.sy,
+              transform: 'translate(-50%, -50%)',
+              opacity: ind.opacity,
+              transition: 'opacity 200ms ease',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <div
+                className="animate-pulse"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.15)',
+                  border: '1.5px solid rgba(255,255,255,0.4)',
+                  backdropFilter: 'blur(4px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  aria-hidden
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <polyline points="19 12 12 5 5 12" />
+                </svg>
+              </div>
+              <div
+                style={{
+                  background: 'rgba(0,0,0,0.5)',
+                  color: 'rgba(255,255,255,0.85)',
+                  backdropFilter: 'blur(4px)',
+                  borderRadius: '4px',
+                  padding: '2px 8px',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {ind.label}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : null}
+    </>
   );
 }
 

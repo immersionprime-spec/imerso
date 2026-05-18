@@ -60,11 +60,11 @@ THRESHOLDS:
   ksplat_mb 5-15             -> IDEAL
 
 PARAMETROS TUNAVEIS:
-  TotalSteps: 20000-90000 (base: 60000)
+  TotalSteps: 20000-40000 (base: 30000; HARD CAP 40000 — acima disso, sem ganho)
   FrameTargetCount: 100-350
   FrameMinSharpness: 30.0-150.0
   SkipFrameSelection: true/false
-  ForceColmapMapper: true/false (SEMPRE recomende true para evitar bug GLOMAP)
+  ForceColmapMapper: true/false (HARDCODED true no advisor; só desative com --no-force-colmap em testes A/B)
   UseHloc: true/false (features neurais, melhor para paredes lisas, +20min)
 
 CAUSA MAIS COMUM DE TOUR RUIM:
@@ -80,6 +80,11 @@ Avalie o resultado final do tour 3DGS e decida se esta pronto para upload.
 
 DADOS ITERACAO {iteration}:
 {data}
+
+REGRAS DE RETRY:
+- NUNCA sugira TotalSteps > 40000 (hard cap do projeto, sem ganho acima)
+- Se n_gaussians < 100k apos > 30k steps: o problema e SfM, nao steps; sugira refazer captura
+- Se sparse fragmentou (mapping_report.largest_component_selected=true): sugira refazer captura
 
 JSON de resposta (sem texto extra):
 {{
@@ -224,6 +229,9 @@ def run_advisor(args):
     if args.skip_frame_selection:   params["SkipFrameSelection"] = True
     if args.output_dir:             params["OutputDir"]          = args.output_dir
     if args.max_image_size > 0:     params["MaxImageSize"]       = args.max_image_size
+    # Repassa MaxFrames para o PS1 quando SkipFrameSelection ativo
+    # (sem isso o PS1 usa o default hardcoded de 350)
+    params["MaxFrames"] = args.frame_count
 
     history    = []
     best_dir   = None
@@ -295,12 +303,16 @@ def main():
     src.add_argument("--video",  help="Video MP4")
     src.add_argument("--photos", help="Pasta de fotos")
     p.add_argument("--api-key",              default="",    help="Anthropic API key (prefira ANTHROPIC_API_KEY env var)")
-    p.add_argument("--steps",                type=int,   default=60000)
-    p.add_argument("--frame-count",          type=int,   default=200)
+    p.add_argument("--steps",                type=int,   default=30000,
+                   help="DEFAULT 30000. Acima de 40000 e clamped (Brush 0.3.0 nao ganha qualidade alem disso).")
+    p.add_argument("--frame-count",          type=int,   default=500)
     p.add_argument("--min-sharpness",        type=float, default=80.0)
     p.add_argument("--output-dir",           default="")
     p.add_argument("--transpose",            default="none")
-    p.add_argument("--force-colmap",         action="store_true")
+    p.add_argument("--force-colmap",         action="store_true", default=True,
+                   help="DEFAULT True. Use --no-force-colmap apenas para A/B testing.")
+    p.add_argument("--no-force-colmap",      dest="force_colmap", action="store_false",
+                   help="Desativa o force-colmap (NÃO recomendado).")
     p.add_argument("--skip-frame-selection", action="store_true")
     p.add_argument("--max-iterations",       type=int, default=3)
     p.add_argument("--auto-retry",           action="store_true")

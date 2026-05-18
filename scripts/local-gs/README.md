@@ -2,6 +2,17 @@
 
 Ferramenta de **prova de conceito** no PC do desenvolvedor (Windows + GPU NVIDIA). Não faz parte do código de produção do Imerso nem de API.
 
+## ⚠️ STACK FIXA — NÃO ATUALIZAR
+
+- **COLMAP 3.11.1** — NÃO atualizar enquanto o trainer for Brush 0.3.0
+- **Brush 0.3.0** — última versão usada no projeto (set/2025); **não** assumir 0.4 até haver release público e validação aqui
+
+**Por quê:** Brush 0.3.0 não lê `frames.bin` / `rigs.bin` introduzidos no COLMAP 3.12+ e pode terminar em panic `min > max`. Já houve downgrade explícito por essa incompatibilidade (mai/2026).
+
+**Re-avaliar quando:** sair Brush 0.4+ **ou** migrar o trainer para nuvem (RunPod — ver `ROADMAP.md` item [9]) com imagem testada ponta a ponta.
+
+Contexto operacional para outros agentes: `scripts/local-gs/AGENT_CONTEXT.md`.
+
 ## Protocolo de Captura — Loop Closure
 
 Para obter os melhores resultados de SfM e **reduzir drift** (paredes “tortas” ou rasgos no SuperSplat), feche o loop ao capturar:
@@ -78,7 +89,7 @@ Instalados **globalmente** e disponíveis no `PATH` do PowerShell:
 | numpy + plyfile (P07/P08) | sim para `-EnablePruning` ou `-EnableReorder`/`-GenerateLiteKsplat` | `pip install -r scripts\local-gs\requirements_lightgaussian.txt` |
 | scikit-learn (P07)      | só com `-EnableQuantization` | mesmo arquivo `requirements_lightgaussian.txt` (ou omita e não use quantize) |
 
-Versões usadas na especificação: ffmpeg 8.x, COLMAP 4.1 CUDA, Brush 0.3.0 (`brush_app.exe`). Para GLOMAP, ver seção “SfM: GLOMAP (preferred) com fallback COLMAP”. Para hloc, ver "SfM: Features clássicas vs neurais (hloc)" e `requirements_hloc.txt`. Para Mip-Splatting, ver "Trainers 3DGS (Brush vs Mip-Splatting, P06)" e `requirements_mipsplatting.txt`. Para LightGaussian Pruning, reorder/lite P08, ver "Compressão: LightGaussian Pruning (P07)" e `requirements_lightgaussian.txt`. Se nenhuma dessas opções estiver disponível, o pipeline usa Brush + COLMAP exatamente como antes — todos os P04/P05/P06/P07/P08 são **opt-in** por flag.
+Versões usadas na especificação: ffmpeg 8.x, **COLMAP 3.11.1** CUDA (ver secção «STACK FIXA» acima), Brush 0.3.0 (`brush_app.exe`). Para GLOMAP, ver seção “SfM: GLOMAP (preferred) com fallback COLMAP”. Para hloc, ver "SfM: Features clássicas vs neurais (hloc)" e `requirements_hloc.txt`. Para Mip-Splatting, ver "Trainers 3DGS (Brush vs Mip-Splatting, P06)" e `requirements_mipsplatting.txt`. Para LightGaussian Pruning, reorder/lite P08, ver "Compressão: LightGaussian Pruning (P07)" e `requirements_lightgaussian.txt`. Se nenhuma dessas opções estiver disponível, o pipeline usa Brush + COLMAP exatamente como antes — todos os P04/P05/P06/P07/P08 são **opt-in** por flag.
 
 ## Como usar
 
