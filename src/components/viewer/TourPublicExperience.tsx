@@ -40,6 +40,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
   const [loadingOverlay, setLoadingOverlay] = useState(!cameFromRef.current);
   const [detailLoading, setDetailLoading] = useState(false);
   const [api, setApi] = useState<SplatViewerAPI | null>(null);
+  const [viewerReady, setViewerReady] = useState(false);
   const [moveSpeed, setMoveSpeed] = useState<MoveSpeedLevel>('medium');
   const [infoOpen, setInfoOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -161,6 +162,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
     (viewerApi: SplatViewerAPI) => {
       setApi(viewerApi);
       apiRef.current = viewerApi;
+      setViewerReady(true);
       const cam = entryCamRef.current;
       if (cam) {
         viewerApi.setCameraState({ position: cam.position, target: cam.target });
@@ -261,7 +263,12 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
       <ElevationSlider api={api} />
       <PortaButtons api={api} waypoints={data.waypoints} />
       <WaypointLabels api={api} waypoints={data.waypoints} />
-      <ProximityPortaTransition api={api} waypoints={data.waypoints} currentTourId={data.tour.id} />
+      <ProximityPortaTransition
+        api={api}
+        waypoints={data.waypoints}
+        currentTourId={data.tour.id}
+        viewerReady={viewerReady}
+      />
       <ViewerControls
         api={api}
         onInfo={() => setInfoOpen(true)}
