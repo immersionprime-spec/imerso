@@ -20,6 +20,7 @@ export async function insertEditorWaypoint(
   tourId: string,
   data: EditorWaypointPayload
 ): Promise<{ id: string } | { error: string; code?: string }> {
+  // Busca tour de destino para label e câmera de entrada padrão
   const { data: destTour } = await supabase
     .from('tours')
     .select('id, titulo, camera_start_position, camera_start_target')
@@ -30,22 +31,20 @@ export async function insertEditorWaypoint(
     return { error: 'Tour de destino não encontrado.' };
   }
 
-  const { data: rows } = await supabase
-    .from('tour_waypoints')
-    .select('ordem')
-    .eq('tour_id', tourId)
-    .order('ordem', { ascending: false })
-    .limit(1);
-  const ordem = (rows?.[0]?.ordem ?? -1) + 1;
-
   const nextCamPos =
     parseCameraVec(destTour.camera_start_position as Json | null) ?? { x: 0, y: 0, z: 0 };
   const nextCamTgt =
     parseCameraVec(destTour.camera_start_target as Json | null) ?? { x: 0, y: 0, z: 0 };
 
-  const insert: Record<string, unknown> = {
-    tour_id: tourId,
-    ordem,
+  // Verifica se já existe waypoint entre esses dois tours — se sim, atualiza em vez de inserir
+  const { data: existing } = await supabase
+    .from('tour_waypoints')
+    .select('id, ordem')
+    .eq('tour_id', tourId)
+    .eq('next_tour_id', data.next_tour_id)
+    .maybeSingle();
+
+  const payload: Record<string, unknown> = {
     position_x: data.position_x,
     position_y: data.position_y,
     position_z: data.position_z,
@@ -61,15 +60,34 @@ export async function insertEditorWaypoint(
     label_distance: data.label_distance,
   };
 
+  if (existing) {
+    // UPDATE — waypoint entre esses dois tours já existe
+    const { data: row, error } = await supabase
+      .from('tour_waypoints')
+      .update(payload as never)
+      .eq('id', existing.id)
+      .select('id')
+      .single();
+
+    if (error) return { error: error.message, code: error.code ?? undefined };
+    return { id: row.id };
+  }
+
+  // INSERT — primeiro waypoint entre esses dois tours
+  const { data: rows } = await supabase
+    .from('tour_waypoints')
+    .select('ordem')
+    .eq('tour_id', tourId)
+    .order('ordem', { ascending: false })
+    .limit(1);
+  const ordem = (rows?.[0]?.ordem ?? -1) + 1;
+
   const { data: row, error } = await supabase
     .from('tour_waypoints')
-    .insert(insert as never)
+    .insert({ tour_id: tourId, ordem, ...payload } as never)
     .select('id')
     .single();
 
-  if (error) {
-    return { error: error.message, code: error.code ?? undefined };
-  }
-
+  if (error) return { error: error.message, code: error.code ?? undefined };
   return { id: row.id };
 }
