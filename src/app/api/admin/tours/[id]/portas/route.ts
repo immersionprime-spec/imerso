@@ -85,7 +85,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
   const { data, error } = await supabase
     .from('tour_waypoints')
     .select(
-      'id, ordem, position_x, position_y, position_z, target_x, target_y, target_z, label, next_tour_id, next_cam_position, next_cam_target, proximity_threshold, label_distance' as never
+      'id, ordem, position_x, position_y, position_z, target_x, target_y, target_z, label, next_tour_id, next_cam_position, next_cam_target, proximity_threshold, label_distance'
     )
     .eq('tour_id', tourId)
     .not('next_tour_id', 'is', null)
@@ -111,4 +111,5 @@ export async function GET(_req: Request, { params }: RouteParams) {
 
   return jsonOk({ portas });
 }
+
 
