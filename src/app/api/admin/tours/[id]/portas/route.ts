@@ -57,6 +57,8 @@ export async function POST(req: Request, { params }: RouteParams) {
     next_tour_id: d.next_tour_id,
     next_cam_position: d.next_cam_position,
     next_cam_target: d.next_cam_target,
+    proximity_threshold: d.proximity_threshold ?? 1.8,
+    label_distance: d.label_distance ?? 3.0,
   };
 
   const { data: row, error } = await supabase

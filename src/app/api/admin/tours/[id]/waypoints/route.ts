@@ -1,6 +1,7 @@
 import { requireSuperAdminApi, typedAdminSupabase } from '@/lib/auth/api-admin';
 import { jsonError, jsonOk } from '@/lib/api/errors';
-import { createWaypointSchema } from '@/lib/validation/admin';
+import { insertEditorWaypoint } from '@/lib/admin/editor-waypoint-insert';
+import { createEditorWaypointSchema, createWaypointSchema } from '@/lib/validation/admin';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -16,6 +17,20 @@ export async function POST(req: Request, { params }: RouteParams) {
     body = await req.json();
   } catch {
     return jsonError('VALIDATION_ERROR', 'Invalid JSON body.', 400);
+  }
+
+  const editorParsed = createEditorWaypointSchema.safeParse(body);
+  if (editorParsed.success) {
+    const { data: tour } = await supabase.from('tours').select('id').eq('id', tourId).maybeSingle();
+    if (!tour) {
+      return jsonError('NOT_FOUND', 'Tour not found.', 404);
+    }
+
+    const result = await insertEditorWaypoint(supabase, tourId, editorParsed.data);
+    if ('error' in result) {
+      return jsonError('INTERNAL', result.error, 500);
+    }
+    return jsonOk({ id: result.id }, 201);
   }
 
   const parsed = createWaypointSchema.safeParse(body);

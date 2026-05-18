@@ -421,6 +421,7 @@ export function SplatViewer({
         const ZOOM_SCROLL_SPEED = 0.08;
         const onWheel = (e: WheelEvent) => {
           if (pickModeRef.current) return;
+          if (e.shiftKey) return;
           e.preventDefault();
           let delta = e.deltaY;
           if (e.deltaMode === 1) delta *= 16;
