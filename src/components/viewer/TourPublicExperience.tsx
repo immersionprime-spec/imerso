@@ -110,20 +110,21 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
 
   const apiRef = useRef<SplatViewerAPI | null>(null);
 
-  // Lê câmera de entrada da query string uma vez (transição de porta)
+  // Lê tour de origem da query string (ex: ?from=<tour_id>)
+  // e busca o next_cam_position do waypoint deste tour que aponta de volta para a origem
   const entryCamRef = useRef<{ position: number[]; target: number[] } | null>(null);
-  const entryCamParsedRef = useRef(false);
-  if (!entryCamParsedRef.current && typeof window !== 'undefined') {
-    entryCamParsedRef.current = true;
-    const qs = new URLSearchParams(window.location.search);
-    const cpx = Number(qs.get('cpx'));
-    const cpy = Number(qs.get('cpy'));
-    const cpz = Number(qs.get('cpz'));
-    const ctx = Number(qs.get('ctx'));
-    const cty = Number(qs.get('cty'));
-    const ctz = Number(qs.get('ctz'));
-    if ([cpx, cpy, cpz, ctx, cty, ctz].every(Number.isFinite)) {
-      entryCamRef.current = { position: [cpx, cpy, cpz], target: [ctx, cty, ctz] };
+  const entryCamResolvedRef = useRef(false);
+  if (!entryCamResolvedRef.current && typeof window !== 'undefined') {
+    entryCamResolvedRef.current = true;
+    const fromTourId = new URLSearchParams(window.location.search).get('from');
+    if (fromTourId) {
+      const wp = data.waypoints.find((w) => w.next_tour_id === fromTourId);
+      if (wp?.next_cam_position && wp?.next_cam_target) {
+        entryCamRef.current = {
+          position: wp.next_cam_position,
+          target: wp.next_cam_target,
+        };
+      }
     }
   }
 
@@ -131,25 +132,29 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
     (viewerApi: SplatViewerAPI) => {
       setApi(viewerApi);
       apiRef.current = viewerApi;
-      // Se não tem câmera de entrada via QS, aplica câmera padrão do tour
-      if (!entryCamRef.current) {
-        const p = data.tour.camera_start_position;
-        const tgt = data.tour.camera_start_target;
-        if (p && tgt) {
-          viewerApi.setCameraState({ position: p, target: tgt });
-        }
+      const cam = entryCamRef.current;
+      if (cam) {
+        viewerApi.setCameraState({ position: cam.position, target: cam.target });
+        return;
       }
-      // Se tem QS, aguarda onFullReady para aplicar (bounds precisam existir)
+      const p = data.tour.camera_start_position;
+      const tgt = data.tour.camera_start_target;
+      if (p && tgt) {
+        viewerApi.setCameraState({ position: p, target: tgt });
+      }
     },
-    [data.tour.camera_start_position, data.tour.camera_start_target]
+    [data.tour.camera_start_position, data.tour.camera_start_target, data.waypoints]
   );
 
-  /** Após lite -> full sem câmera de entrada: restaura câmera padrão do tour. */
+  /** Após lite -> full: restaura câmera correta. */
   useEffect(() => {
     if (!hasLite || detailLoading) return;
     if (!api) return;
-    // Se tem câmera de entrada pendente, onFullReady cuida disso
-    if (entryCamRef.current) return;
+    const cam = entryCamRef.current;
+    if (cam) {
+      api.setCameraState({ position: cam.position, target: cam.target });
+      return;
+    }
     const p = data.tour.camera_start_position;
     const tgt = data.tour.camera_start_target;
     if (!p || !tgt) return;
@@ -174,14 +179,6 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
 
   const onFullReady = useCallback(() => {
     setDetailLoading(false);
-    // Usa ref diretamente — api (state) pode ser null no closure
-    const v = apiRef.current;
-    if (v && entryCamRef.current) {
-      const cam = entryCamRef.current;
-      entryCamRef.current = null;
-      // Pequeno delay para bounds estabilizarem após o full load
-      window.setTimeout(() => v.setCameraState(cam), 80);
-    }
   }, []);
 
   const onViewerError = useCallback(
@@ -226,7 +223,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
       <ElevationSlider api={api} />
       <PortaButtons api={api} waypoints={data.waypoints} />
       <WaypointLabels api={api} waypoints={data.waypoints} />
-      <ProximityPortaTransition api={api} waypoints={data.waypoints} />
+      <ProximityPortaTransition api={api} waypoints={data.waypoints} currentTourId={data.tour.id} />
       <ViewerControls
         api={api}
         onInfo={() => setInfoOpen(true)}

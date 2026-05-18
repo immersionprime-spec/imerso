@@ -23,6 +23,8 @@ const PLANE_HALF_WIDTH = 2.5;
 interface ProximityPortaTransitionProps {
   api: SplatViewerAPI | null;
   waypoints: PublicTourPayload['waypoints'];
+  /** Tour atual (origem da transição) — passado como ?from= na URL de destino */
+  currentTourId: string;
 }
 
 /** Normaliza um vetor 3D. Retorna null se magnitude zero. */
@@ -68,7 +70,7 @@ function lateralDist(
   return Math.sqrt(perpX * perpX + perpZ * perpZ);
 }
 
-export function ProximityPortaTransition({ api, waypoints }: ProximityPortaTransitionProps) {
+export function ProximityPortaTransition({ api, waypoints, currentTourId }: ProximityPortaTransitionProps) {
   const [fading, setFading] = useState(false);
   const triggeredRef = useRef(false);
   const activeRef = useRef(false);
@@ -144,20 +146,8 @@ export function ProximityPortaTransition({ api, waypoints }: ProximityPortaTrans
         triggeredRef.current = true;
         setFading(true);
         window.setTimeout(() => {
-          let href = wp.next_tour_href!;
-          if (wp.next_cam_position && wp.next_cam_target) {
-            const [px, py, pz] = wp.next_cam_position;
-            const [tx, ty, tz] = wp.next_cam_target;
-            const qs = new URLSearchParams({
-              cpx: String(px),
-              cpy: String(py),
-              cpz: String(pz),
-              ctx: String(tx),
-              cty: String(ty),
-              ctz: String(tz),
-            });
-            href = `${href}?${qs.toString()}`;
-          }
+          // Passa tour de origem na URL — destino usa next_cam do waypoint que aponta de volta
+          const href = `${wp.next_tour_href!}?from=${encodeURIComponent(currentTourId)}`;
           window.location.href = href;
         }, FADE_DURATION_MS);
         break;
