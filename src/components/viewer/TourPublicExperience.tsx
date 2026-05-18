@@ -174,12 +174,15 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
 
   const onFullReady = useCallback(() => {
     setDetailLoading(false);
-    const v = api ?? apiRef.current;
+    // Usa ref diretamente — api (state) pode ser null no closure
+    const v = apiRef.current;
     if (v && entryCamRef.current) {
-      v.setCameraState(entryCamRef.current);
+      const cam = entryCamRef.current;
       entryCamRef.current = null;
+      // Pequeno delay para bounds estabilizarem após o full load
+      window.setTimeout(() => v.setCameraState(cam), 80);
     }
-  }, [api]);
+  }, []);
 
   const onViewerError = useCallback(
     (err: Error) => {
