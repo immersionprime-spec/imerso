@@ -50,6 +50,8 @@ export interface SplatViewerAPI {
   resetCamera: () => void;
   getCameraState: () => { position: number[]; target: number[] };
   setCameraState: (state: { position: number[]; target: number[]; exact?: boolean }) => void;
+  lockCamera: (state: { position: number[]; target: number[] }) => void;
+  unlockCamera: () => void;
   takeScreenshot: () => Promise<Blob>;
   enterFullscreen: () => void;
   exitFullscreen: () => void;
@@ -187,6 +189,8 @@ export function SplatViewer({
   useEffect(() => { pickModeRef.current = pickMode; }, [pickMode]);
   useEffect(() => { moveSpeedRef.current = MOVE_SPEED_VALUES[moveSpeedLevel]; }, [moveSpeedLevel]);
   const homeStateRef = useRef<{ position: [number, number, number]; target: [number, number, number] } | null>(null);
+  // Câmera travada: quando definida, o applySceneFit não reseta a posição
+  const lockedCameraRef = useRef<{ position: number[]; target: number[] } | null>(null);
   const pickHandlerRef = useRef(onPickWorld);
   useEffect(() => { pickHandlerRef.current = onPickWorld; }, [onPickWorld]);
 
@@ -328,18 +332,34 @@ export function SplatViewer({
           boundsRef.current = fittedNow.bounds;
           const navFit = navFromBounds(fittedNow.bounds, cam.position.y);
           cachedNav = navFit;
-          cam.position.set(
-            (fittedNow.bounds.min[0] + fittedNow.bounds.max[0]) / 2,
-            navFit.targetY,
-            (fittedNow.bounds.min[2] + fittedNow.bounds.max[2]) / 2
-          );
-          yaw = (-splatRotationDeg * Math.PI) / 180;
-          pitch = 0;
-          lastYaw = -1;
-          lastPitch = -1;
           const elevRange = elevationYRange(fittedNow.bounds, cam.position.y);
           cachedYMin = elevRange.yMin;
           cachedYMax = elevRange.yMax;
+          // Se câmera travada (transição de porta), não reseta posição — apenas atualiza bounds
+          if (lockedCameraRef.current) {
+            const locked = lockedCameraRef.current;
+            cam.position.fromArray(locked.position);
+            cachedNav.targetY = cam.position.y;
+            const dx = locked.target[0] - cam.position.x;
+            const dy = locked.target[1] - cam.position.y;
+            const dz = locked.target[2] - cam.position.z;
+            yaw = Math.atan2(-dx, cameraUpInverted ? dz : -dz);
+            pitch = clamp(
+              Math.atan2(cameraUpInverted ? -dy : dy, Math.sqrt(dx * dx + dz * dz)),
+              -PITCH_LIMIT,
+              PITCH_LIMIT
+            );
+          } else {
+            cam.position.set(
+              (fittedNow.bounds.min[0] + fittedNow.bounds.max[0]) / 2,
+              navFit.targetY,
+              (fittedNow.bounds.min[2] + fittedNow.bounds.max[2]) / 2
+            );
+            yaw = (-splatRotationDeg * Math.PI) / 180;
+            pitch = 0;
+          }
+          lastYaw = -1;
+          lastPitch = -1;
           cam.updateMatrixWorld(true);
           return true;
         };
@@ -637,6 +657,12 @@ export function SplatViewer({
             yaw = Math.atan2(-dx, cameraUpInverted ? dz : -dz);
             pitch = clamp(Math.atan2(cameraUpInverted ? -dy : dy, Math.sqrt(dx*dx+dz*dz)), -PITCH_LIMIT, PITCH_LIMIT);
           },
+          lockCamera: (state) => {
+            lockedCameraRef.current = state;
+          },
+          unlockCamera: () => {
+            lockedCameraRef.current = null;
+          },
           takeScreenshot: async () => {
             const canvas = viewer.renderer?.domElement as HTMLCanvasElement | undefined;
             if (!canvas) throw new Error('No canvas');
@@ -703,6 +729,21 @@ export function SplatViewer({
                 const newRange = elevationYRange(fitted2.bounds, cam.position.y);
                 cachedYMin = newRange.yMin;
                 cachedYMax = newRange.yMax;
+                // Se câmera travada, restaura após recalcular bounds
+                if (lockedCameraRef.current) {
+                  const locked = lockedCameraRef.current;
+                  cam.position.fromArray(locked.position);
+                  cachedNav.targetY = cam.position.y;
+                  const dx = locked.target[0] - cam.position.x;
+                  const dy = locked.target[1] - cam.position.y;
+                  const dz = locked.target[2] - cam.position.z;
+                  yaw = Math.atan2(-dx, cameraUpInverted ? dz : -dz);
+                  pitch = clamp(
+                    Math.atan2(cameraUpInverted ? -dy : dy, Math.sqrt(dx * dx + dz * dz)),
+                    -PITCH_LIMIT,
+                    PITCH_LIMIT
+                  );
+                }
               }
               callbacksRef.current.onFullReady?.();
             } catch (e) {

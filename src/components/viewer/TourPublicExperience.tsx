@@ -121,11 +121,9 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
       const ctz = qs ? Number(qs.get('ctz')) : NaN;
       const hasQs = [cpx, cpy, cpz, ctx, cty, ctz].every(Number.isFinite);
       if (hasQs) {
-        viewerApi.setCameraState({
-          position: [cpx, cpy, cpz],
-          target: [ctx, cty, ctz],
-          exact: true,
-        });
+        const entryCam = { position: [cpx, cpy, cpz], target: [ctx, cty, ctz] };
+        viewerApi.lockCamera(entryCam);
+        viewerApi.setCameraState({ ...entryCam, exact: true });
         return;
       }
       // Fallback: câmera padrão do tour
@@ -175,7 +173,9 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
 
   const onFullReady = useCallback(() => {
     setDetailLoading(false);
-  }, []);
+    // Libera o lock de câmera após o splat full carregar completamente
+    if (api) api.unlockCamera();
+  }, [api]);
 
   const onViewerError = useCallback(
     (err: Error) => {
