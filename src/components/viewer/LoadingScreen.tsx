@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { Progress } from '@/components/ui/Progress';
@@ -11,12 +12,29 @@ interface LoadingScreenProps {
 
 export function LoadingScreen({ visible, progress }: LoadingScreenProps) {
   const t = useTranslations('viewer');
-  if (!visible) return null;
+  const [shouldRender, setShouldRender] = useState(visible);
+
+  useEffect(() => {
+    if (visible) {
+      setShouldRender(true);
+    } else {
+      const timerId = window.setTimeout(() => setShouldRender(false), 650);
+      return () => window.clearTimeout(timerId);
+    }
+  }, [visible]);
+
+  if (!shouldRender) return null;
+
   const pct = Math.min(100, Math.max(0, Math.round(progress)));
 
   return (
     <div
-      className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-7 bg-background px-8 animate-fade-in"
+      className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-7 bg-background px-8"
+      style={{
+        opacity: visible ? 1 : 0,
+        transition: 'opacity 600ms ease-out',
+        pointerEvents: visible ? 'auto' : 'none',
+      }}
       role="status"
       aria-live="polite"
       aria-label={t('loading')}
