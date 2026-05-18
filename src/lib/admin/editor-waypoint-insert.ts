@@ -41,7 +41,7 @@ export async function insertEditorWaypoint(
     .from('tour_waypoints')
     .select('id, ordem')
     .eq('tour_id', tourId)
-    .eq('next_tour_id', data.next_tour_id)
+    .eq('next_tour_id' as never, data.next_tour_id)
     .maybeSingle();
 
   const payload: Record<string, unknown> = {
