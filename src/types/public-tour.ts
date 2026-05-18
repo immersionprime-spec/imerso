@@ -61,5 +61,7 @@ export interface PublicTourPayload {
     next_tour_href: string | null;
     next_cam_position: [number, number, number] | null;
     next_cam_target: [number, number, number] | null;
+    proximity_threshold: number;
+    label_distance: number;
   }>;
 }

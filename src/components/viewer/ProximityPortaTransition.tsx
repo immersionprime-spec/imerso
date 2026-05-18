@@ -4,9 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import type { SplatViewerAPI } from './SplatViewer';
 import type { PublicTourPayload } from '@/types/public-tour';
 
-/** Distância 3D (unidades da cena) abaixo da qual a transição dispara. */
-const PROXIMITY_THRESHOLD = 1.8;
-
 /** Cooldown em ms após mount antes de ativar a detecção (evita trigger no ponto de entrada). */
 const ACTIVATION_DELAY_MS = 3000;
 
@@ -62,7 +59,7 @@ export function ProximityPortaTransition({ api, waypoints }: ProximityPortaTrans
 
       for (const wp of portaWaypoints) {
         const d = dist3d(cx, cy, cz, wp.position_x, wp.position_y, wp.position_z);
-        if (d < PROXIMITY_THRESHOLD) {
+        if (d < wp.proximity_threshold) {
           triggeredRef.current = true;
           setFading(true);
           window.setTimeout(() => {

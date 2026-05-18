@@ -126,7 +126,7 @@ export async function fetchPublicTourPayload(opts: FetchOptions): Promise<
     const { data: wp } = await supabase
       .from('tour_waypoints')
       .select(
-        'id, ordem, position_x, position_y, position_z, target_x, target_y, target_z, duration_ms, label, next_tour_id, next_cam_position, next_cam_target'
+        'id, ordem, position_x, position_y, position_z, target_x, target_y, target_z, duration_ms, label, next_tour_id, next_cam_position, next_cam_target, proximity_threshold, label_distance'
       )
       .eq('tour_id', tourRow.id)
       .order('ordem', { ascending: true });
@@ -145,6 +145,8 @@ export async function fetchPublicTourPayload(opts: FetchOptions): Promise<
       next_tour_id: string | null;
       next_cam_position: Json | null;
       next_cam_target: Json | null;
+      proximity_threshold: number | string | null;
+      label_distance: number | string | null;
     };
 
     const wpList = (wp ?? []) as unknown as WpRow[];
@@ -192,6 +194,8 @@ export async function fetchPublicTourPayload(opts: FetchOptions): Promise<
       next_tour_href: w.next_tour_id ? (nextHrefMap[w.next_tour_id as string] ?? null) : null,
       next_cam_position: parseCameraTuple(w.next_cam_position),
       next_cam_target: parseCameraTuple(w.next_cam_target),
+      proximity_threshold: Number(w.proximity_threshold) || 1.8,
+      label_distance: Number(w.label_distance) || 3.0,
     }));
   }
 
