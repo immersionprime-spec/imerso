@@ -108,47 +108,48 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
 
   const hasLite = Boolean(data.tour.splat_url_lite);
 
+  const apiRef = useRef<SplatViewerAPI | null>(null);
+
+  // Lê câmera de entrada da query string uma vez (transição de porta)
+  const entryCamRef = useRef<{ position: number[]; target: number[] } | null>(null);
+  const entryCamParsedRef = useRef(false);
+  if (!entryCamParsedRef.current && typeof window !== 'undefined') {
+    entryCamParsedRef.current = true;
+    const qs = new URLSearchParams(window.location.search);
+    const cpx = Number(qs.get('cpx'));
+    const cpy = Number(qs.get('cpy'));
+    const cpz = Number(qs.get('cpz'));
+    const ctx = Number(qs.get('ctx'));
+    const cty = Number(qs.get('cty'));
+    const ctz = Number(qs.get('ctz'));
+    if ([cpx, cpy, cpz, ctx, cty, ctz].every(Number.isFinite)) {
+      entryCamRef.current = { position: [cpx, cpy, cpz], target: [ctx, cty, ctz] };
+    }
+  }
+
   const onReady = useCallback(
     (viewerApi: SplatViewerAPI) => {
       setApi(viewerApi);
-      // Lê câmera de entrada passada via query string (transição entre tours)
-      const qs = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-      const cpx = qs ? Number(qs.get('cpx')) : NaN;
-      const cpy = qs ? Number(qs.get('cpy')) : NaN;
-      const cpz = qs ? Number(qs.get('cpz')) : NaN;
-      const ctx = qs ? Number(qs.get('ctx')) : NaN;
-      const cty = qs ? Number(qs.get('cty')) : NaN;
-      const ctz = qs ? Number(qs.get('ctz')) : NaN;
-      const hasQs = [cpx, cpy, cpz, ctx, cty, ctz].every(Number.isFinite);
-      if (hasQs) {
-        const entryCam = { position: [cpx, cpy, cpz], target: [ctx, cty, ctz] };
-        viewerApi.lockCamera(entryCam);
-        viewerApi.setCameraState({ ...entryCam, exact: true });
-        return;
+      apiRef.current = viewerApi;
+      // Se não tem câmera de entrada via QS, aplica câmera padrão do tour
+      if (!entryCamRef.current) {
+        const p = data.tour.camera_start_position;
+        const tgt = data.tour.camera_start_target;
+        if (p && tgt) {
+          viewerApi.setCameraState({ position: p, target: tgt });
+        }
       }
-      // Fallback: câmera padrão do tour
-      const p = data.tour.camera_start_position;
-      const tgt = data.tour.camera_start_target;
-      if (p && tgt) {
-        viewerApi.setCameraState({
-          position: p,
-          target: tgt,
-        });
-      }
+      // Se tem QS, aguarda onFullReady para aplicar (bounds precisam existir)
     },
     [data.tour.camera_start_position, data.tour.camera_start_target]
   );
 
-  /** Após lite -> full, o viewer refaz fit da câmera; volta ao POV salvo. */
+  /** Após lite -> full sem câmera de entrada: restaura câmera padrão do tour. */
   useEffect(() => {
     if (!hasLite || detailLoading) return;
     if (!api) return;
-    // Se veio de transição via query string, não sobrescreve com câmera padrão
-    const qs = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-    const hasQs = qs
-      ? ['cpx', 'cpy', 'cpz', 'ctx', 'cty', 'ctz'].every((k) => Number.isFinite(Number(qs.get(k))))
-      : false;
-    if (hasQs) return;
+    // Se tem câmera de entrada pendente, onFullReady cuida disso
+    if (entryCamRef.current) return;
     const p = data.tour.camera_start_position;
     const tgt = data.tour.camera_start_target;
     if (!p || !tgt) return;
@@ -173,8 +174,11 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
 
   const onFullReady = useCallback(() => {
     setDetailLoading(false);
-    // Libera o lock de câmera após o splat full carregar completamente
-    if (api) api.unlockCamera();
+    const v = api ?? apiRef.current;
+    if (v && entryCamRef.current) {
+      v.setCameraState(entryCamRef.current);
+      entryCamRef.current = null;
+    }
   }, [api]);
 
   const onViewerError = useCallback(
