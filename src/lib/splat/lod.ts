@@ -34,6 +34,7 @@ export function detectInitialQuality(): QualityLevel {
   const memGB = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
 
   if (!isMobile && !isTablet) return 'high';
+  if (isTablet && memGB >= 4) return 'high';
   if (isTablet) return 'medium';
   if (isMobile && memGB <= 2) return 'low';
   return 'medium';
