@@ -290,7 +290,6 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
         coverImageUrl={data.tour.foto_capa_url}
         tourTitle={data.tour.titulo}
       />
-      <NavigationHint visible={showNavHint} onDismiss={() => setShowNavHint(false)} />
       <div className="absolute inset-0">
         <SplatViewer
           splatUrl={data.tour.splat_url}
@@ -341,18 +340,6 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
         url={shareUrl}
         onScreenshot={handleScreenshot}
       />
-      <ShareNudge
-        visible={showShareNudge}
-        onShare={() => {
-          setShowShareNudge(false);
-          setShareOpen(true);
-          shareNudgeDismissedRef.current = true;
-        }}
-        onDismiss={() => {
-          setShowShareNudge(false);
-          shareNudgeDismissedRef.current = true;
-        }}
-      />
       {phone ? <WhatsAppFloating phone={phoneRaw} message={messageForLink} tourId={data.tour.id} /> : null}
       {detailLoading ? (
         <div
@@ -372,38 +359,6 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
           <img src={data.imobiliaria.logo_url} alt="" className="max-h-10 w-auto opacity-90 sm:max-h-12" />
         </div>
       ) : null}
-
-      {!loadingOverlay ? (
-        <button
-          type="button"
-          onClick={() => setInfoOpen(true)}
-          className={`fixed left-3 z-20 flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 backdrop-blur-sm transition-opacity hover:bg-black/70 sm:left-4 ${
-            data.imobiliaria.logo_url ? 'top-28 sm:top-32' : 'top-16 sm:top-20'
-          }`}
-          aria-label="Ver informações do imóvel"
-        >
-          {data.corretor?.foto_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={data.corretor.foto_url}
-              alt=""
-              className="h-6 w-6 shrink-0 rounded-full border border-white/20 object-cover"
-            />
-          ) : (
-            <div className="h-6 w-6 shrink-0 rounded-full border border-white/20 bg-white/10" />
-          )}
-          <div className="flex flex-col leading-none">
-            <span className="max-w-[140px] truncate text-[11px] font-medium text-white">
-              {data.corretor?.nome ?? data.imobiliaria.nome}
-            </span>
-            <span className="max-w-[140px] truncate text-[10px] text-white/50">{data.tour.titulo}</span>
-          </div>
-        </button>
-      ) : null}
-
-      <PropertySummaryCard tour={data.tour} onExpand={() => setInfoOpen(true)} visible={!loadingOverlay} />
-
-      <AmbientAudio audioUrl={null} />
 
       {cameFromRef.current ? (
         <div
