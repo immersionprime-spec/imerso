@@ -124,6 +124,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
         viewerApi.setCameraState({
           position: [cpx, cpy, cpz],
           target: [ctx, cty, ctz],
+          exact: true,
         });
         return;
       }

@@ -49,7 +49,7 @@ export interface SplatViewerAPI {
   setQuality: (q: QualityLevel) => void;
   resetCamera: () => void;
   getCameraState: () => { position: number[]; target: number[] };
-  setCameraState: (state: { position: number[]; target: number[] }) => void;
+  setCameraState: (state: { position: number[]; target: number[]; exact?: boolean }) => void;
   takeScreenshot: () => Promise<Blob>;
   enterFullscreen: () => void;
   exitFullscreen: () => void;
@@ -619,16 +619,19 @@ export function SplatViewer({
             return { position: pos.toArray(), target: [tgt.x, tgt.y, tgt.z] };
           },
           setCameraState: (state) => {
-            const { expandedBounds: ex } = navFromBounds(boundsRef.current, cam.position.y);
             cam.position.fromArray(state.position);
-            if (boundsRef.current) {
-              cam.position.y = clamp(cam.position.y, cachedYMin, cachedYMax);
+            // exact=true: respeita posição exata sem clampear (usado em transições de porta)
+            if (!state.exact) {
+              const { expandedBounds: ex } = navFromBounds(boundsRef.current, cam.position.y);
+              if (boundsRef.current) {
+                cam.position.y = clamp(cam.position.y, cachedYMin, cachedYMax);
+              }
+              if (ex) {
+                cam.position.x = clamp(cam.position.x, ex.min[0], ex.max[0]);
+                cam.position.z = clamp(cam.position.z, ex.min[2], ex.max[2]);
+              }
             }
             cachedNav.targetY = cam.position.y;
-            if (ex) {
-              cam.position.x = clamp(cam.position.x, ex.min[0], ex.max[0]);
-              cam.position.z = clamp(cam.position.z, ex.min[2], ex.max[2]);
-            }
             const cx = cam.position.x, cy = cam.position.y, cz = cam.position.z;
             const dx = state.target[0]-cx, dy = state.target[1]-cy, dz = state.target[2]-cz;
             yaw = Math.atan2(-dx, cameraUpInverted ? dz : -dz);
