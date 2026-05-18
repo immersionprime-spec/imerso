@@ -350,7 +350,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
           {t('detail_loading_badge')}
         </div>
       ) : null}
-      <div className="pointer-events-none fixed left-1/2 top-3 z-10 -translate-x-1/2 rounded-md glass px-3 py-1.5 text-[10px] text-text-muted opacity-50 transition-opacity duration-200 hover:opacity-80 sm:text-xs">
+      <div className="pointer-events-none fixed bottom-3 left-3 z-20 rounded-md glass px-3 py-1.5 text-[10px] text-text-muted sm:text-xs">
         Powered by Imerso
       </div>
       {data.imobiliaria.logo_url ? (
