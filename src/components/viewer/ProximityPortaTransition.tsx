@@ -144,7 +144,21 @@ export function ProximityPortaTransition({ api, waypoints }: ProximityPortaTrans
         triggeredRef.current = true;
         setFading(true);
         window.setTimeout(() => {
-          window.location.href = wp.next_tour_href!;
+          let href = wp.next_tour_href!;
+          if (wp.next_cam_position && wp.next_cam_target) {
+            const [px, py, pz] = wp.next_cam_position;
+            const [tx, ty, tz] = wp.next_cam_target;
+            const qs = new URLSearchParams({
+              cpx: String(px),
+              cpy: String(py),
+              cpz: String(pz),
+              ctx: String(tx),
+              cty: String(ty),
+              ctz: String(tz),
+            });
+            href = `${href}?${qs.toString()}`;
+          }
+          window.location.href = href;
         }, FADE_DURATION_MS);
         break;
       }

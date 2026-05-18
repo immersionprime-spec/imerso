@@ -111,6 +111,23 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
   const onReady = useCallback(
     (viewerApi: SplatViewerAPI) => {
       setApi(viewerApi);
+      // Lê câmera de entrada passada via query string (transição entre tours)
+      const qs = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const cpx = qs ? Number(qs.get('cpx')) : NaN;
+      const cpy = qs ? Number(qs.get('cpy')) : NaN;
+      const cpz = qs ? Number(qs.get('cpz')) : NaN;
+      const ctx = qs ? Number(qs.get('ctx')) : NaN;
+      const cty = qs ? Number(qs.get('cty')) : NaN;
+      const ctz = qs ? Number(qs.get('ctz')) : NaN;
+      const hasQs = [cpx, cpy, cpz, ctx, cty, ctz].every(Number.isFinite);
+      if (hasQs) {
+        viewerApi.setCameraState({
+          position: [cpx, cpy, cpz],
+          target: [ctx, cty, ctz],
+        });
+        return;
+      }
+      // Fallback: câmera padrão do tour
       const p = data.tour.camera_start_position;
       const tgt = data.tour.camera_start_target;
       if (p && tgt) {
@@ -126,13 +143,17 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
   /** Após lite -> full, o viewer refaz fit da câmera; volta ao POV salvo. */
   useEffect(() => {
     if (!hasLite || detailLoading) return;
+    if (!api) return;
+    // Se veio de transição via query string, não sobrescreve com câmera padrão
+    const qs = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const hasQs = qs
+      ? ['cpx', 'cpy', 'cpz', 'ctx', 'cty', 'ctz'].every((k) => Number.isFinite(Number(qs.get(k))))
+      : false;
+    if (hasQs) return;
     const p = data.tour.camera_start_position;
     const tgt = data.tour.camera_start_target;
-    if (!api || !p || !tgt) return;
-    api.setCameraState({
-      position: p,
-      target: tgt,
-    });
+    if (!p || !tgt) return;
+    api.setCameraState({ position: p, target: tgt });
   }, [hasLite, detailLoading, api, data.tour.camera_start_position, data.tour.camera_start_target]);
 
   const onProgress = useCallback(
