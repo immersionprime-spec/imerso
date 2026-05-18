@@ -2,6 +2,9 @@ import { requireSuperAdminApi, typedAdminSupabase } from '@/lib/auth/api-admin';
 import { jsonError, jsonOk } from '@/lib/api/errors';
 import { parseCamVec } from '@/lib/admin/camera-vec';
 import { createPortaWaypointSchema } from '@/lib/validation/admin';
+import type { Database, Json } from '@/types/database.types';
+
+type WpInsert = Database['public']['Tables']['tour_waypoints']['Insert'];
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -43,8 +46,7 @@ export async function POST(req: Request, { params }: RouteParams) {
   const ordem = (rows?.[0]?.ordem ?? -1) + 1;
 
   const d = parsed.data;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const insert: Record<string, any> = {
+  const insert: WpInsert = {
     tour_id: tourId,
     ordem,
     position_x: d.position_x,
@@ -56,15 +58,15 @@ export async function POST(req: Request, { params }: RouteParams) {
     duration_ms: 0,
     label: d.label,
     next_tour_id: d.next_tour_id,
-    next_cam_position: d.next_cam_position,
-    next_cam_target: d.next_cam_target,
+    next_cam_position: d.next_cam_position as unknown as Json,
+    next_cam_target: d.next_cam_target as unknown as Json,
     proximity_threshold: d.proximity_threshold ?? 1.8,
     label_distance: d.label_distance ?? 3.0,
   };
 
   const { data: row, error } = await supabase
     .from('tour_waypoints')
-    .insert(insert as never)
+    .insert(insert)
     .select('id')
     .single();
 
