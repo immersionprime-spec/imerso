@@ -153,7 +153,7 @@ export function WaypointPanel({
       </div>
 
       {mode === 'edit' ? (
-        <p
+        <div
           className={cn(
             'rounded-md px-2 py-1.5 text-xs',
             entryComplete
@@ -161,8 +161,14 @@ export function WaypointPanel({
               : 'bg-warning/15 text-warning'
           )}
         >
-          {entryComplete ? '✓ Câmera de entrada configurada' : '⚠ Câmera de entrada não configurada'}
-        </p>
+          <p>{entryComplete ? '✓ Câmera de entrada configurada' : '⚠ Câmera de entrada não configurada'}</p>
+          {waypoint.next_cam_position ? (
+            <p className="mt-0.5 font-mono text-[10px] opacity-80">
+              X: {formatCoord(waypoint.next_cam_position.x)} · Y: {formatCoord(waypoint.next_cam_position.y)} · Z:{' '}
+              {formatCoord(waypoint.next_cam_position.z)}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="space-y-1">
