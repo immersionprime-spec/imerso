@@ -162,3 +162,11 @@ export const createEditorWaypointSchema = z.object({
 });
 
 export const updatePortaWaypointSchema = createPortaWaypointSchema.partial();
+
+/** PATCH parcial no editor (câmera de entrada, thresholds). */
+export const patchEditorWaypointSchema = z.object({
+  next_cam_position: z.object({ x: z.number(), y: z.number(), z: z.number() }).optional(),
+  next_cam_target: z.object({ x: z.number(), y: z.number(), z: z.number() }).optional(),
+  proximity_threshold: z.coerce.number().min(0.1).max(100).optional(),
+  label_distance: z.coerce.number().min(0.1).max(100).optional(),
+});

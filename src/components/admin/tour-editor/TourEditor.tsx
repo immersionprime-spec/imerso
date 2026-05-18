@@ -4,7 +4,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { SplatViewer, type SplatViewerAPI } from '@/components/viewer/SplatViewer';
 import { Button } from '@/components/ui/Button';
 import { WaypointPanel, type TourDestinationOption } from './WaypointPanel';
-import type { PendingWaypoint } from './types';
+import { WaypointPins } from './WaypointPins';
+import { WaypointList } from './WaypointList';
+import type { PendingWaypoint, SavedWaypoint } from './types';
+import { parseCamVec } from './types';
 
 const COORD_INTERVAL_MS = 200;
 const FIT_RETRY_MS = 300;
@@ -38,6 +41,42 @@ function createPendingFromCamera(position: number[], target: number[]): PendingW
   };
 }
 
+function savedToPending(wp: SavedWaypoint): PendingWaypoint {
+  return {
+    id: wp.id,
+    position_x: wp.position_x,
+    position_y: wp.position_y,
+    position_z: wp.position_z,
+    target_x: wp.target_x,
+    target_y: wp.target_y,
+    target_z: wp.target_z,
+    next_tour_id: wp.next_tour_id,
+    proximity_threshold: wp.proximity_threshold,
+    label_distance: wp.label_distance,
+    status: 'saved',
+    next_cam_position: wp.next_cam_position,
+    next_cam_target: wp.next_cam_target,
+  };
+}
+
+function normalizePortaRow(row: Record<string, unknown>): SavedWaypoint {
+  return {
+    id: String(row.id),
+    position_x: Number(row.position_x),
+    position_y: Number(row.position_y),
+    position_z: Number(row.position_z),
+    target_x: Number(row.target_x),
+    target_y: Number(row.target_y),
+    target_z: Number(row.target_z),
+    label: row.label != null ? String(row.label) : null,
+    next_tour_id: row.next_tour_id != null ? String(row.next_tour_id) : null,
+    next_cam_position: parseCamVec(row.next_cam_position),
+    next_cam_target: parseCamVec(row.next_cam_target),
+    proximity_threshold: Number(row.proximity_threshold) || 1.8,
+    label_distance: Number(row.label_distance) || 3.0,
+  };
+}
+
 export function TourEditor({
   tourId,
   splatUrl,
@@ -50,14 +89,37 @@ export function TourEditor({
   const [cameraCoords, setCameraCoords] = useState({ x: 0, y: 0, z: 0 });
   const [loading, setLoading] = useState(true);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [panelMode, setPanelMode] = useState<'create' | 'edit'>('create');
   const [pendingWaypoint, setPendingWaypoint] = useState<PendingWaypoint | null>(null);
+  const [savedWaypoints, setSavedWaypoints] = useState<SavedWaypoint[]>([]);
+  const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
   const [availableTours, setAvailableTours] = useState<TourDestinationOption[]>([]);
   const fitTimeoutIdsRef = useRef<number[]>([]);
 
+  const fetchSavedWaypoints = useCallback(async () => {
+    const res = await fetch(`/api/admin/tours/${tourId}/portas`);
+    const data = (await res.json().catch(() => ({}))) as { portas?: Record<string, unknown>[] };
+    const list = (data.portas ?? []).map(normalizePortaRow);
+    setSavedWaypoints(list);
+  }, [tourId]);
+
   const openWaypointFromCamera = useCallback((viewerApi: SplatViewerAPI) => {
     const { position, target } = viewerApi.getCameraState();
+    setPanelMode('create');
+    setSelectedWaypointId(null);
     setPendingWaypoint(createPendingFromCamera(position, target));
     setPanelOpen(true);
+  }, []);
+
+  const selectSavedWaypoint = useCallback((wp: SavedWaypoint, viewerApi: SplatViewerAPI | null) => {
+    setSelectedWaypointId(wp.id);
+    setPanelMode('edit');
+    setPendingWaypoint(savedToPending(wp));
+    setPanelOpen(true);
+    viewerApi?.setCameraState({
+      position: [wp.position_x, wp.position_y, wp.position_z],
+      target: [wp.target_x, wp.target_y, wp.target_z],
+    });
   }, []);
 
   const onReady = useCallback((viewerApi: SplatViewerAPI) => {
@@ -108,7 +170,13 @@ export function TourEditor({
     setLoading(true);
     setPanelOpen(false);
     setPendingWaypoint(null);
+    setSelectedWaypointId(null);
+    setSavedWaypoints([]);
   }, [splatUrl]);
+
+  useEffect(() => {
+    void fetchSavedWaypoints();
+  }, [fetchSavedWaypoints]);
 
   useEffect(() => {
     if (!tourId) return;
@@ -186,7 +254,16 @@ export function TourEditor({
   function closePanel() {
     setPanelOpen(false);
     setPendingWaypoint(null);
+    setSelectedWaypointId(null);
+    setPanelMode('create');
   }
+
+  function handleWaypointSaved() {
+    void fetchSavedWaypoints();
+    closePanel();
+  }
+
+  const pendingEntryCount = savedWaypoints.filter((w) => w.next_cam_position === null).length;
 
   if (!splatUrl) {
     return (
@@ -220,6 +297,20 @@ export function TourEditor({
       </div>
 
       <div className="pointer-events-none absolute inset-0 z-10">
+        <WaypointList
+          waypoints={savedWaypoints}
+          selectedId={selectedWaypointId}
+          pendingCount={pendingEntryCount}
+          onSelect={(wp) => selectSavedWaypoint(wp, api)}
+        />
+
+        <WaypointPins
+          api={api}
+          waypoints={savedWaypoints}
+          selectedId={selectedWaypointId}
+          onSelect={(wp) => selectSavedWaypoint(wp, api)}
+        />
+
         <div className="pointer-events-auto absolute right-3 top-3 flex flex-col items-end gap-2">
           <Button
             type="button"
@@ -242,10 +333,13 @@ export function TourEditor({
       {panelOpen && pendingWaypoint ? (
         <WaypointPanel
           tourId={tourId}
+          mode={panelMode}
           waypoint={pendingWaypoint}
           availableTours={availableTours}
+          api={api}
           onClose={closePanel}
-          onSaved={closePanel}
+          onSaved={handleWaypointSaved}
+          onRefresh={() => void fetchSavedWaypoints()}
           onChange={(patch) => setPendingWaypoint((prev) => (prev ? { ...prev, ...patch } : prev))}
         />
       ) : null}

@@ -1,5 +1,6 @@
 import { requireSuperAdminApi, typedAdminSupabase } from '@/lib/auth/api-admin';
 import { jsonError, jsonOk } from '@/lib/api/errors';
+import { parseCamVec } from '@/lib/admin/camera-vec';
 import { createPortaWaypointSchema } from '@/lib/validation/admin';
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -84,7 +85,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
   const { data, error } = await supabase
     .from('tour_waypoints')
     .select(
-      'id, ordem, position_x, position_y, position_z, target_x, target_y, target_z, label, next_tour_id, next_cam_position, next_cam_target'
+      'id, ordem, position_x, position_y, position_z, target_x, target_y, target_z, label, next_tour_id, next_cam_position, next_cam_target, proximity_threshold, label_distance'
     )
     .eq('tour_id', tourId)
     .not('next_tour_id', 'is', null)
@@ -92,5 +93,21 @@ export async function GET(_req: Request, { params }: RouteParams) {
 
   if (error) return jsonError('INTERNAL', error.message, 500);
 
-  return jsonOk({ portas: data ?? [] });
+  const portas = (data ?? []).map((row) => ({
+    id: row.id,
+    position_x: row.position_x,
+    position_y: row.position_y,
+    position_z: row.position_z,
+    target_x: row.target_x,
+    target_y: row.target_y,
+    target_z: row.target_z,
+    label: row.label,
+    next_tour_id: row.next_tour_id,
+    next_cam_position: parseCamVec(row.next_cam_position),
+    next_cam_target: parseCamVec(row.next_cam_target),
+    proximity_threshold: row.proximity_threshold ?? 1.8,
+    label_distance: row.label_distance ?? 3.0,
+  }));
+
+  return jsonOk({ portas });
 }
