@@ -1,6 +1,7 @@
 import { requireSuperAdminApi, typedAdminSupabase } from '@/lib/auth/api-admin';
 import { jsonError, jsonOk } from '@/lib/api/errors';
 import { patchEditorWaypointSchema } from '@/lib/validation/admin';
+import type { Database } from '@/types/database.types';
 
 type RouteParams = { params: Promise<{ id: string; waypointId: string }> };
 
@@ -38,9 +39,22 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     return jsonError('NOT_FOUND', 'Waypoint não encontrado.', 404);
   }
 
+  type WpUpdate = Database['public']['Tables']['tour_waypoints']['Update'];
+  const update: WpUpdate = {
+    proximity_threshold: parsed.data.proximity_threshold,
+    label_distance: parsed.data.label_distance,
+    next_cam_position: parsed.data.next_cam_position as WpUpdate['next_cam_position'],
+    next_cam_target: parsed.data.next_cam_target as WpUpdate['next_cam_target'],
+  };
+
+  // Remove campos undefined para não sobrescrever com null
+  (Object.keys(update) as (keyof WpUpdate)[]).forEach((k) => {
+    if (update[k] === undefined) delete update[k];
+  });
+
   const { error } = await supabase
     .from('tour_waypoints')
-    .update(parsed.data as never)
+    .update(update)
     .eq('id', waypointId)
     .eq('tour_id', tourId);
 
