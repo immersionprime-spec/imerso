@@ -541,25 +541,42 @@ A implementação está correta quando:
 
 ## 15. STATUS ATUAL DE IMPLEMENTAÇÃO
 
-Última atualização: 2026-05-17
+Última atualização: 2026-05-18
 
 | Item | Status | Observação |
 |---|---|---|
-| Aba Editor em /painel/tours/[id] | ✅ CONCLUÍDO | Prompt 1 |
-| Coordenadas em tempo real | ✅ CONCLUÍDO | Prompt 1 |
-| Redirect /portas → ?tab=editor | ✅ CONCLUÍDO | Prompt 1 |
-| Splat renderizando no editor | ❌ BLOQUEADO | Ver seção 2 — bug de CORS/URL |
-| Ctrl+Click para marcar waypoint | ⏳ PENDENTE | Aguarda resolução do bug acima |
-| Shift+Scroll para altura | ⏳ PENDENTE | Aguarda resolução do bug acima |
-| Painel de edição por waypoint | ⏳ PENDENTE | Prompt 3 |
-| Listagem lateral de conexões | ⏳ PENDENTE | Prompt 3 |
-| Indicador COMPLETO/INCOMPLETO | ⏳ PENDENTE | Prompt 3 |
-| Aviso de pendências por tour | ⏳ PENDENTE | Prompt 3 |
-| Legenda 3D com opacidade | ⏳ PENDENTE | Prompt 4 |
-| Threshold individual por waypoint | ⏳ PENDENTE | Prompt 4 |
+| Aba Editor em /painel/tours/[id] | ✅ CONCLUÍDO | |
+| Coordenadas em tempo real | ✅ CONCLUÍDO | |
+| Redirect /portas → ?tab=editor | ✅ CONCLUÍDO | |
+| Splat renderizando no editor | ✅ CONCLUÍDO | Bug de URL resolvido |
+| Ctrl+Click para marcar waypoint | ✅ CONCLUÍDO | |
+| Shift+Scroll para altura | ✅ CONCLUÍDO | |
+| Painel de edição por waypoint | ✅ CONCLUÍDO | |
+| Listagem lateral de conexões | ✅ CONCLUÍDO | |
+| Indicador COMPLETO/INCOMPLETO | ✅ CONCLUÍDO | |
+| Câmera de entrada configurável | ✅ CONCLUÍDO | Botão "Definir câmera de entrada aqui" no editor |
+| Display de coordenadas da câmera de entrada | ✅ CONCLUÍDO | Mostra X/Y/Z no painel após salvar |
+| Upsert de waypoint (evita duplicata) | ✅ CONCLUÍDO | Atualiza se já existe waypoint entre os dois tours |
+| Transição automática entre tours (plane-crossing) | ✅ CONCLUÍDO | ProximityPortaTransition com detecção de plano |
+| Legenda 3D com opacidade por distância | ✅ CONCLUÍDO | WaypointLabels com label_distance por waypoint |
+| Threshold individual por waypoint | ✅ CONCLUÍDO | proximity_threshold no banco por waypoint |
+| Câmera de entrada aplicada corretamente no destino | ✅ CONCLUÍDO | next_cam_position do waypoint do tour de destino via ?from= |
+| Aviso de pendências por tour | ⏳ PENDENTE | Prompt 3 — item não implementado |
 | Fade sincronizado com loading | ⏳ PENDENTE | Prompt 5 |
 | Loading screen condicional | ⏳ PENDENTE | Prompt 5 |
 | Fade-in explícito de entrada | ⏳ PENDENTE | Prompt 5 |
+
+### Decisão de arquitetura — câmera de entrada pós-waypoint (2026-05-18)
+
+O `next_cam_position` e `next_cam_target` de um waypoint definem a câmera de entrada
+**do próprio tour onde esse waypoint está**, não do tour de destino.
+
+Ao atravessar um waypoint (ex: Quarto→Sala), o sistema passa `?from=<quarto_id>` na URL.
+O tour de destino (Sala) lê seu próprio payload, busca o waypoint que tem
+`next_tour_id = quarto_id`, e usa o `next_cam_position` desse waypoint como câmera inicial.
+
+Isso garante que cada editor só configura a câmera do seu próprio espaço 3D —
+coordenadas de um splat não são válidas em outro splat.
 
 ---
 
