@@ -20,11 +20,18 @@ const FADE_DURATION_MS = 600;
  */
 const PLANE_HALF_WIDTH = 2.5;
 
+/** Distância mínima que o visitante precisa se afastar do plano antes de poder
+ * disparar a transição. Evita trigger imediato quando câmera começa próxima ao plano. */
+const MOVED_AWAY_THRESHOLD = 0.8;
+
 interface ProximityPortaTransitionProps {
   api: SplatViewerAPI | null;
   waypoints: PublicTourPayload['waypoints'];
   /** Tour atual (origem da transição) — passado como ?from= na URL de destino */
   currentTourId: string;
+  /** Sinaliza que o viewer terminou de inicializar e a câmera está na posição correta.
+   * O timer de ativação só começa após viewerReady = true. */
+  viewerReady: boolean;
 }
 
 /** Normaliza um vetor 3D. Retorna null se magnitude zero. */
@@ -70,7 +77,7 @@ function lateralDist(
   return Math.sqrt(perpX * perpX + perpZ * perpZ);
 }
 
-export function ProximityPortaTransition({ api, waypoints, currentTourId }: ProximityPortaTransitionProps) {
+export function ProximityPortaTransition({ api, waypoints, currentTourId, viewerReady }: ProximityPortaTransitionProps) {
   const [fading, setFading] = useState(false);
   const triggeredRef = useRef(false);
   const activeRef = useRef(false);
@@ -88,22 +95,19 @@ export function ProximityPortaTransition({ api, waypoints, currentTourId }: Prox
   }, [fading]);
 
   useEffect(() => {
-    if (!api || portaWaypoints.length === 0) return;
+    if (!api || portaWaypoints.length === 0 || !viewerReady) return;
 
     triggeredRef.current = false;
     activeRef.current = false;
 
-    // Lado inicial de cada waypoint em relação ao plano (positivo ou negativo)
-    // Precisamos saber de qual lado o visitante começou para detectar o cruzamento
     const initialSides: Map<string, number> = new Map();
+    const hasMovedAwayMap: Map<string, boolean> = new Map();
 
     const activationTimer = window.setTimeout(() => {
-      // Captura o lado inicial de cada waypoint ao ativar
       const { position } = api.getCameraState();
       const [cx, cy, cz] = position;
 
       for (const wp of portaWaypoints) {
-        // Normal do plano = direção que o admin estava olhando ao marcar
         const ndx = wp.target_x - wp.position_x;
         const ndy = wp.target_y - wp.position_y;
         const ndz = wp.target_z - wp.position_z;
@@ -112,6 +116,9 @@ export function ProximityPortaTransition({ api, waypoints, currentTourId }: Prox
 
         const side = distToPlane(cx, cy, cz, wp.position_x, wp.position_y, wp.position_z, n[0], n[1], n[2]);
         initialSides.set(wp.id, side >= 0 ? 1 : -1);
+
+        const absDist = Math.abs(side);
+        hasMovedAwayMap.set(wp.id, absDist > MOVED_AWAY_THRESHOLD);
       }
 
       activeRef.current = true;
@@ -140,18 +147,23 @@ export function ProximityPortaTransition({ api, waypoints, currentTourId }: Prox
 
         if (initialSign === undefined) continue;
 
-        // Verifica se cruzou o plano
+        if (!hasMovedAwayMap.get(wp.id) && Math.abs(currentSide) > MOVED_AWAY_THRESHOLD) {
+          hasMovedAwayMap.set(wp.id, true);
+        }
+
         if (currentSign === initialSign) continue;
 
-        // Verifica largura lateral — evita trigger muito longe do centro da porta
-        const lat = lateralDist(cx, cz, wp.position_x, wp.position_z, n[0], n[2]);
-        if (lat > PLANE_HALF_WIDTH) {
-          // Cruzou mas está longe demais lateralmente — atualiza o lado sem disparar
+        if (!hasMovedAwayMap.get(wp.id)) {
           initialSides.set(wp.id, currentSign);
           continue;
         }
 
-        // Cruzou o plano dentro da largura válida — dispara
+        const lat = lateralDist(cx, cz, wp.position_x, wp.position_z, n[0], n[2]);
+        if (lat > PLANE_HALF_WIDTH) {
+          initialSides.set(wp.id, currentSign);
+          continue;
+        }
+
         triggeredRef.current = true;
         setFading(true);
         const href = `${wp.next_tour_href!}?from=${encodeURIComponent(currentTourId)}`;
@@ -167,7 +179,7 @@ export function ProximityPortaTransition({ api, waypoints, currentTourId }: Prox
       window.clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, portaWaypoints.length]);
+  }, [api, portaWaypoints.length, viewerReady]);
 
   if (!fading) return null;
 
