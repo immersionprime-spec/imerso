@@ -32,7 +32,10 @@ function dist3d(
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-const POLL_MS = 100;
+/** Intervalo de polling das labels de waypoint.
+ * 200ms é suficiente para fade suave (transition 150ms no CSS) sem desperdiçar
+ * CPU competindo com o requestAnimationFrame do SplatViewer. */
+const POLL_MS = 200;
 
 export function WaypointLabels({ api, waypoints }: WaypointLabelsProps) {
   const [labels, setLabels] = useState<LabelState[]>([]);

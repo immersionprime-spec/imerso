@@ -200,6 +200,8 @@ export function SplatViewer({
         const preset = QUALITY_PRESETS[quality];
         const isCoarsePointer =
           typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+        const isTablet =
+          isCoarsePointer && window.matchMedia('(min-width: 768px)').matches;
         let viewer: ViewerInstance = new Viewer({
           rootElement: containerRef.current!,
           cameraUp: cameraUpInverted ? [0, -1, 0] : [0, 1, 0],
@@ -361,7 +363,7 @@ export function SplatViewer({
         joystickZone.className = 'splat-joystick-zone';
         joystickZone.setAttribute('aria-hidden', 'true');
         joystickZone.style.cssText = `
-          position: absolute; left: 0; top: 0; bottom: 0; width: 50%;
+          position: absolute; left: 0; top: 0; bottom: 0; width: ${isTablet ? '35%' : '50%'};
           z-index: 30;
           pointer-events: ${isCoarsePointer ? 'auto' : 'none'};
           touch-action: none;
@@ -438,7 +440,8 @@ export function SplatViewer({
         const isRightHalf = (clientX: number): boolean => {
           if (!canvasEl) return true;
           const rect = canvasEl.getBoundingClientRect();
-          return clientX - rect.left >= rect.width * 0.5;
+          const threshold = isTablet ? rect.width * 0.35 : rect.width * 0.5;
+          return clientX - rect.left >= threshold;
         };
 
         const onPinchPointerDown = (e: PointerEvent) => {

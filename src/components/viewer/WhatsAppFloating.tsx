@@ -43,7 +43,10 @@ export function WhatsAppFloating({ phone, message, tourId }: WhatsAppFloatingPro
   }
 
   return (
-    <div className="fixed bottom-6 right-5 z-30 sm:right-6">
+    <div
+      className="fixed right-5 z-30 sm:right-6"
+      style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+    >
       <button
         type="button"
         onClick={handleClick}

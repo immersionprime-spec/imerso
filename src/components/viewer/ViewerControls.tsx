@@ -48,7 +48,7 @@ export function ViewerControls({
             type="button"
             variant="outline"
             size="icon"
-            className="glass border-border-strong bg-surface/80"
+            className="glass border-border-strong bg-surface/80 h-11 w-11 md:h-9 md:w-9"
             aria-label={t('reset_view')}
             onClick={() => api?.resetCamera()}
           >
@@ -58,7 +58,7 @@ export function ViewerControls({
             type="button"
             variant="outline"
             size="icon"
-            className="glass border-border-strong bg-surface/80"
+            className="glass border-border-strong bg-surface/80 h-11 w-11 md:h-9 md:w-9"
             aria-label={t('info_button')}
             onClick={onInfo}
           >
@@ -69,7 +69,7 @@ export function ViewerControls({
               type="button"
               variant={minimapOpen ? 'primary' : 'outline'}
               size="icon"
-              className="glass border-border-strong bg-surface/80"
+              className="glass border-border-strong bg-surface/80 h-11 w-11 md:h-9 md:w-9"
               aria-label={t('minimap.toggle')}
               aria-pressed={minimapOpen}
               onClick={onMinimapToggle}
@@ -86,7 +86,7 @@ export function ViewerControls({
             type="button"
             variant="outline"
             size="icon"
-            className="glass border-border-strong bg-surface/80"
+            className="glass border-border-strong bg-surface/80 h-11 w-11 md:h-9 md:w-9"
             aria-label={t('share')}
             onClick={onShare}
           >
@@ -96,7 +96,7 @@ export function ViewerControls({
             type="button"
             variant="outline"
             size="icon"
-            className="glass border-border-strong bg-surface/80"
+            className="glass border-border-strong bg-surface/80 h-11 w-11 md:h-9 md:w-9"
             aria-label={t('screenshot')}
             onClick={async () => {
               try {
@@ -119,7 +119,7 @@ export function ViewerControls({
             type="button"
             variant="outline"
             size="icon"
-            className="glass border-border-strong bg-surface/80"
+            className="glass border-border-strong bg-surface/80 h-11 w-11 md:h-9 md:w-9"
             aria-label={t('fullscreen')}
             onClick={onToggleFullscreen}
           >
@@ -137,7 +137,7 @@ export function ViewerControls({
               type="button"
               className={cn(
                 buttonVariants({ variant: moveSpeed === k ? 'primary' : 'ghost', size: 'sm' }),
-                'h-8 px-2 text-xs'
+                'h-11 px-3 text-sm md:h-8 md:px-2 md:text-xs'
               )}
               onClick={() => onMoveSpeedChange(k)}
             >

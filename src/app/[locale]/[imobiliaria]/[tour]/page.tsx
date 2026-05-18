@@ -10,6 +10,15 @@ type PageProps = {
   params: Promise<{ locale: string; imobiliaria: string; tour: string }>;
 };
 
+function formatBrlShort(n: number | null | undefined): string {
+  if (!n) return '';
+  return n.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    maximumFractionDigits: 0,
+  });
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale, imobiliaria, tour: tourSlug } = await params;
   setRequestLocale(locale);
@@ -24,7 +33,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: `${tr.titulo} — ${im.nome}`,
     description: (tr.descricao ?? '').slice(0, 160),
     openGraph: {
-      title: tr.titulo,
+      title: tr.valor ? `${tr.titulo} — ${formatBrlShort(tr.valor)}` : tr.titulo,
       description: tr.descricao ?? undefined,
       ...(base ? { images: [`${base}/api/og/${imobiliaria}/${tourSlug}`] } : {}),
       type: 'website',

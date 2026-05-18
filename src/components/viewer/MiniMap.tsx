@@ -91,7 +91,13 @@ export function MiniMap({ api, hotspots, open }: MiniMapProps) {
 
   return (
     <div className="pointer-events-none absolute bottom-20 left-3 z-[26] rounded-lg border border-border-strong bg-surface/90 p-1 shadow-lg-dark backdrop-blur-sm sm:bottom-24 sm:left-4">
-      <canvas ref={canvasRef} width={144} height={144} className="rounded-md" aria-hidden />
+      <canvas
+        ref={canvasRef}
+        width={200}
+        height={200}
+        className="h-36 w-36 rounded-md md:h-[200px] md:w-[200px]"
+        aria-hidden
+      />
     </div>
   );
 }

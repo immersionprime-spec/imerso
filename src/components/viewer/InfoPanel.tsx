@@ -72,9 +72,23 @@ export function InfoPanel({ open, onOpenChange, data }: InfoPanelProps) {
             ) : null}
           </div>
           {corretor ? (
-            <div className="border-t border-border pt-4">
-              <p className="font-medium text-text-primary">{corretor.nome}</p>
-              {corretor.creci ? <p className="text-text-muted">CRECI {corretor.creci}</p> : null}
+            <div className="flex items-center gap-3 border-t border-border pt-4">
+              {corretor.foto_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={corretor.foto_url}
+                  alt=""
+                  className="h-12 w-12 flex-shrink-0 rounded-full border border-border object-cover"
+                />
+              ) : (
+                <div className="h-12 w-12 flex-shrink-0 rounded-full border border-border bg-surface-elevated" />
+              )}
+              <div>
+                <p className="font-medium text-text-primary">{corretor.nome}</p>
+                {corretor.creci ? (
+                  <p className="text-xs text-text-muted">CRECI {corretor.creci}</p>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </div>

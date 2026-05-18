@@ -56,7 +56,7 @@ export function ElevationSlider({ api }: ElevationSliderProps) {
 
   return (
     <div
-      className="pointer-events-none fixed bottom-28 right-3 z-50 flex flex-col items-center gap-2 sm:right-4"
+      className="pointer-events-none fixed bottom-28 right-3 z-50 flex flex-col items-center gap-2 sm:right-4 md:bottom-36"
     >
       <button
         type="button"
