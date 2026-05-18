@@ -66,6 +66,8 @@ export default async function TourWaypointsPage({ params }: PageProps) {
     next_tour_href: null,
     next_cam_position: null,
     next_cam_target: null,
+    proximity_threshold: 1.8,
+    label_distance: 3.0,
   }));
 
   const t = await getTranslations('admin.tours.waypoints');
@@ -88,3 +90,4 @@ export default async function TourWaypointsPage({ params }: PageProps) {
     </div>
   );
 }
+
