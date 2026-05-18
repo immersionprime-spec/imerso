@@ -74,9 +74,18 @@ export function ProximityPortaTransition({ api, waypoints, currentTourId }: Prox
   const [fading, setFading] = useState(false);
   const triggeredRef = useRef(false);
   const activeRef = useRef(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   // Filtra apenas waypoints de porta com href válido
   const portaWaypoints = waypoints.filter((w) => w.next_tour_href && w.next_tour_id);
+
+  useEffect(() => {
+    if (!fading) return;
+    const frame = requestAnimationFrame(() => {
+      overlayRef.current?.classList.add('opacity-100');
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [fading]);
 
   useEffect(() => {
     if (!api || portaWaypoints.length === 0) return;
@@ -145,9 +154,8 @@ export function ProximityPortaTransition({ api, waypoints, currentTourId }: Prox
         // Cruzou o plano dentro da largura válida — dispara
         triggeredRef.current = true;
         setFading(true);
+        const href = `${wp.next_tour_href!}?from=${encodeURIComponent(currentTourId)}`;
         window.setTimeout(() => {
-          // Passa tour de origem na URL — destino usa next_cam do waypoint que aponta de volta
-          const href = `${wp.next_tour_href!}?from=${encodeURIComponent(currentTourId)}`;
           window.location.href = href;
         }, FADE_DURATION_MS);
         break;
@@ -165,16 +173,10 @@ export function ProximityPortaTransition({ api, waypoints, currentTourId }: Prox
 
   return (
     <div
+      ref={overlayRef}
       aria-hidden
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9998,
-        backgroundColor: '#000',
-        opacity: fading ? 1 : 0,
-        transition: `opacity ${FADE_DURATION_MS}ms ease-in`,
-        pointerEvents: 'none',
-      }}
+      className="pointer-events-none fixed inset-0 z-[9998] bg-black opacity-0"
+      style={{ transition: `opacity ${FADE_DURATION_MS}ms ease-in` }}
     />
   );
 }
