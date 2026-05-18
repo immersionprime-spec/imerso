@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import type { PublicTourPayload } from '@/types/public-tour';
@@ -27,8 +28,16 @@ interface TourPublicExperienceProps {
 
 export function TourPublicExperience({ data, shareUrl }: TourPublicExperienceProps) {
   const t = useTranslations('viewer');
+
+  const cameFromRef = useRef(false);
+  const cameFromResolvedRef = useRef(false);
+  if (!cameFromResolvedRef.current && typeof window !== 'undefined') {
+    cameFromResolvedRef.current = true;
+    cameFromRef.current = Boolean(new URLSearchParams(window.location.search).get('from'));
+  }
+
   const [loadProgress, setLoadProgress] = useState(0);
-  const [loadingOverlay, setLoadingOverlay] = useState(true);
+  const [loadingOverlay, setLoadingOverlay] = useState(!cameFromRef.current);
   const [detailLoading, setDetailLoading] = useState(false);
   const [api, setApi] = useState<SplatViewerAPI | null>(null);
   const [moveSpeed, setMoveSpeed] = useState<MoveSpeedLevel>('medium');
@@ -36,7 +45,27 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
   const [shareOpen, setShareOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [minimapOpen, setMinimapOpen] = useState(false);
+  const [entryOverlayVisible, setEntryOverlayVisible] = useState(false);
+  const [showTransitionLoading, setShowTransitionLoading] = useState(false);
+  const transitionTimerRef = useRef<number | null>(null);
   const startedRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (cameFromRef.current) {
+      setEntryOverlayVisible(true);
+      transitionTimerRef.current = window.setTimeout(() => {
+        setShowTransitionLoading(true);
+      }, 1500);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current !== null) {
+        window.clearTimeout(transitionTimerRef.current);
+      }
+    };
+  }, []);
 
   const founderPhone = process.env.NEXT_PUBLIC_WHATSAPP_FOUNDER ?? '';
   const defaultMsg = process.env.NEXT_PUBLIC_WHATSAPP_MESSAGE_DEFAULT ?? '';
@@ -135,12 +164,21 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
       const cam = entryCamRef.current;
       if (cam) {
         viewerApi.setCameraState({ position: cam.position, target: cam.target });
-        return;
+      } else {
+        const p = data.tour.camera_start_position;
+        const tgt = data.tour.camera_start_target;
+        if (p && tgt) {
+          viewerApi.setCameraState({ position: p, target: tgt });
+        }
       }
-      const p = data.tour.camera_start_position;
-      const tgt = data.tour.camera_start_target;
-      if (p && tgt) {
-        viewerApi.setCameraState({ position: p, target: tgt });
+
+      if (cameFromRef.current) {
+        if (transitionTimerRef.current !== null) {
+          window.clearTimeout(transitionTimerRef.current);
+          transitionTimerRef.current = null;
+        }
+        setShowTransitionLoading(false);
+        window.setTimeout(() => setEntryOverlayVisible(false), 200);
       }
     },
     [data.tour.camera_start_position, data.tour.camera_start_target, data.waypoints]
@@ -257,6 +295,32 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
         <div className="pointer-events-none fixed left-3 top-16 z-20 sm:left-4 sm:top-20">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={data.imobiliaria.logo_url} alt="" className="max-h-10 w-auto opacity-90 sm:max-h-12" />
+        </div>
+      ) : null}
+
+      {cameFromRef.current ? (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-[9997] bg-black"
+          style={{
+            opacity: entryOverlayVisible ? 1 : 0,
+            transition: 'opacity 600ms ease-out',
+          }}
+        />
+      ) : null}
+
+      {showTransitionLoading ? (
+        <div
+          className="pointer-events-none fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-6 bg-black"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="animate-pulse-soft">
+            <Image src="/logo-mark.svg" alt="Imerso" width={56} height={56} priority />
+          </div>
+          <p className="text-sm font-medium text-white/80">
+            {`Carregando ${data.tour.titulo}…`}
+          </p>
         </div>
       ) : null}
 
