@@ -144,6 +144,21 @@ export const createPortaWaypointSchema = z.object({
   next_tour_id: z.string().uuid(),
   next_cam_position: z.object({ x: z.number(), y: z.number(), z: z.number() }),
   next_cam_target: z.object({ x: z.number(), y: z.number(), z: z.number() }),
+  proximity_threshold: z.coerce.number().min(0.1).max(100).optional(),
+  label_distance: z.coerce.number().min(0.1).max(100).optional(),
+});
+
+/** Waypoint de porta marcado no editor (câmera atual + tour de destino). */
+export const createEditorWaypointSchema = z.object({
+  position_x: z.coerce.number(),
+  position_y: z.coerce.number(),
+  position_z: z.coerce.number(),
+  target_x: z.coerce.number(),
+  target_y: z.coerce.number(),
+  target_z: z.coerce.number(),
+  next_tour_id: z.string().uuid(),
+  proximity_threshold: z.coerce.number().min(0.1).max(100).default(1.8),
+  label_distance: z.coerce.number().min(0.1).max(100).default(3.0),
 });
 
 export const updatePortaWaypointSchema = createPortaWaypointSchema.partial();
