@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
       corretores: {
@@ -281,10 +286,16 @@ export type Database = {
           created_at: string | null
           duration_ms: number | null
           id: string
+          label: string | null
+          label_distance: number | null
+          next_cam_position: Json | null
+          next_cam_target: Json | null
+          next_tour_id: string | null
           ordem: number
           position_x: number
           position_y: number
           position_z: number
+          proximity_threshold: number | null
           target_x: number
           target_y: number
           target_z: number
@@ -294,10 +305,16 @@ export type Database = {
           created_at?: string | null
           duration_ms?: number | null
           id?: string
+          label?: string | null
+          label_distance?: number | null
+          next_cam_position?: Json | null
+          next_cam_target?: Json | null
+          next_tour_id?: string | null
           ordem: number
           position_x: number
           position_y: number
           position_z: number
+          proximity_threshold?: number | null
           target_x: number
           target_y: number
           target_z: number
@@ -307,16 +324,29 @@ export type Database = {
           created_at?: string | null
           duration_ms?: number | null
           id?: string
+          label?: string | null
+          label_distance?: number | null
+          next_cam_position?: Json | null
+          next_cam_target?: Json | null
+          next_tour_id?: string | null
           ordem?: number
           position_x?: number
           position_y?: number
           position_z?: number
+          proximity_threshold?: number | null
           target_x?: number
           target_y?: number
           target_z?: number
           tour_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tour_waypoints_next_tour_id_fkey"
+            columns: ["next_tour_id"]
+            isOneToOne: false
+            referencedRelation: "tours"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tour_waypoints_tour_id_fkey"
             columns: ["tour_id"]
@@ -718,4 +748,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
