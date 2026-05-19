@@ -277,9 +277,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
       <HotspotMarkers api={api} hotspots={data.hotspots} />
       <MiniMap api={api} hotspots={data.hotspots} open={minimapOpen} />
       {showCinematic ? <CinematicPlayer api={api} waypoints={cinematicWaypoints} /> : null}
-      <ElevationSlider api={api} />
       <PortaButtons api={api} waypoints={data.waypoints} />
-      <WaypointLabels api={api} waypoints={data.waypoints} />
       <ProximityPortaTransition
         api={api}
         waypoints={data.waypoints}
