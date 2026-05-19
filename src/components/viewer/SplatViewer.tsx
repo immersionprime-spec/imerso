@@ -152,12 +152,16 @@ function fitCameraToSplat(
 
 function navFromBounds(bounds: SceneBounds | null, fallbackY: number) {
   if (!bounds) {
-    return { expandedBounds: null as SceneBounds | null, targetY: fallbackY, moveSpeed: 0.005 };
+    return { expandedBounds: null as SceneBounds | null, targetY: fallbackY, speedScale: 1.0 };
   }
   const expandedBounds = expandBboxXZ(bounds, 1.1);
   const targetY = bounds.min[1] + (bounds.max[1] - bounds.min[1]) * 0.4;
-  const moveSpeed = 0.033;
-  return { expandedBounds, targetY, moveSpeed };
+  const sizeX = bounds.max[0] - bounds.min[0];
+  const sizeZ = bounds.max[2] - bounds.min[2];
+  const diagonal = Math.sqrt(sizeX * sizeX + sizeZ * sizeZ);
+  // Referência: cena com diagonal ~10 unidades = speedScale 1.0
+  const speedScale = Math.max(0.25, Math.min(4.0, diagonal / 10.0));
+  return { expandedBounds, targetY, speedScale };
 }
 
 function elevationYRange(bounds: SceneBounds | null, fallbackY: number) {
@@ -539,7 +543,7 @@ export function SplatViewer({
             tmpRight.y = 0;
             if (tmpRight.lengthSq() > 0.001) tmpRight.normalize();
             const { expandedBounds, targetY } = cachedNav;
-            const moveSpeed = moveSpeedRef.current;
+            const moveSpeed = moveSpeedRef.current * (cachedNav.speedScale ?? 1.0);
             cam.position.addScaledVector(tmpForward, -moveInput.z * moveSpeed);
             cam.position.addScaledVector(tmpRight, moveInput.x * moveSpeed);
             cam.position.y = targetY;
