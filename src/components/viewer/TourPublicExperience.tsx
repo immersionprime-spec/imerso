@@ -318,6 +318,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
           {t('detail_loading_badge')}
         </div>
       ) : null}
+      <NavigationHint visible={showNavHint} onDismiss={() => setShowNavHint(false)} />
       <div className="pointer-events-none fixed bottom-3 left-3 z-20 rounded-md glass px-3 py-1.5 text-[10px] text-text-muted sm:text-xs">
         Powered by Imerso
       </div>
