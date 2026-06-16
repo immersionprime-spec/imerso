@@ -32,16 +32,20 @@ export function NavigationHint({ visible, onDismiss }: NavigationHintProps) {
   useEffect(() => {
     if (!visible) return;
 
-    const onInteract = () => {
-      onDismiss();
-    };
+    // Aguarda 700ms antes de registrar listeners de interação
+    // para evitar que eventos do viewer dispensem o hint imediatamente
+    const onInteract = () => { onDismiss(); };
+
+    const listenerId = window.setTimeout(() => {
+      window.addEventListener('pointermove', onInteract);
+      window.addEventListener('pointerdown', onInteract);
+      window.addEventListener('keydown', onInteract);
+    }, 700);
 
     const autoId = window.setTimeout(onDismiss, 5000);
-    window.addEventListener('pointermove', onInteract);
-    window.addEventListener('pointerdown', onInteract);
-    window.addEventListener('keydown', onInteract);
 
     return () => {
+      window.clearTimeout(listenerId);
       window.clearTimeout(autoId);
       window.removeEventListener('pointermove', onInteract);
       window.removeEventListener('pointerdown', onInteract);
