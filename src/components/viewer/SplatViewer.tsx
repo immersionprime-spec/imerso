@@ -123,12 +123,19 @@ function fitCameraToSplat(
   viewer: ViewerInstance,
   cameraUpInverted: boolean
 ): { position: [number, number, number]; target: [number, number, number]; bounds: SceneBounds } | null {
+  console.log('[Imerso fitCameraToSplat] CHAMADA', { hasViewer: !!viewer });
   try {
     const splatMesh =
       viewer?.splatMesh ?? viewer?.splatScenes?.[0]?.splatMesh ?? viewer?.splatScenes?.[0];
-    if (!splatMesh) return null;
+    if (!splatMesh) {
+      console.log('[Imerso fitCameraToSplat] return null: !splatMesh');
+      return null;
+    }
     const box = new Box3().setFromObject(splatMesh);
-    if (box.isEmpty()) return null;
+    if (box.isEmpty()) {
+      console.log('[Imerso fitCameraToSplat] return null: box.isEmpty()');
+      return null;
+    }
     const size = box.getSize(new Vector3());
     // TODO(founder): diagnóstico speedScale — remover após coleta (sala vs quarto)
     console.log('[Imerso fitCameraToSplat]', {
@@ -138,7 +145,12 @@ function fitCameraToSplat(
     });
     const center = box.getCenter(new Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
-    if (!Number.isFinite(maxDim) || maxDim === 0) return null;
+    if (!Number.isFinite(maxDim) || maxDim === 0) {
+      console.log('[Imerso fitCameraToSplat] return null: !Number.isFinite(maxDim) || maxDim === 0', {
+        maxDim,
+      });
+      return null;
+    }
     const distance = maxDim * 1.2;
     const offsetZ = cameraUpInverted ? -distance : distance;
     const camPos: [number, number, number] = [center.x, center.y, center.z + offsetZ];
@@ -153,12 +165,14 @@ function fitCameraToSplat(
       max: [box.max.x, box.max.y, box.max.z],
     };
     return { position: camPos, target: tgt, bounds };
-  } catch {
+  } catch (e) {
+    console.error('[Imerso fitCameraToSplat] EXCEPTION', e);
     return null;
   }
 }
 
 function navFromBounds(bounds: SceneBounds | null, fallbackY: number) {
+  console.log('[Imerso navFromBounds] CHAMADA', { hasBounds: !!bounds, fallbackY });
   if (!bounds) {
     return { expandedBounds: null as SceneBounds | null, targetY: fallbackY, speedScale: 1.0 };
   }
