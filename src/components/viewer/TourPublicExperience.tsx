@@ -328,7 +328,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
         viewerReady={viewerReady}
         cameFromWaypoint={cameFromRef.current}
       />
-      <div className="pointer-events-none fixed bottom-3 left-3 z-20 rounded-md glass px-3 py-1.5 text-[10px] text-text-muted sm:text-xs">
+      <div className="pointer-events-none fixed bottom-3 left-3 z-20 text-[10px] tracking-wide text-white/25">
         Powered by Imerso
       </div>
       {data.imobiliaria.logo_url ? (
