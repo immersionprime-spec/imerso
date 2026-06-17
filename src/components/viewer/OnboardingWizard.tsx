@@ -166,7 +166,7 @@ export function OnboardingWizard({ api, mode, viewerReady, cameFromWaypoint }: O
       `}</style>
 
       <div
-        className="fixed inset-0 z-[36]"
+        className="pointer-events-none fixed inset-0 z-[36]"
         style={{ opacity: visible ? 1 : 0, transition: 'opacity 400ms ease' }}
         aria-live="polite"
       >
