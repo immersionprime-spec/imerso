@@ -319,6 +319,19 @@
     "loading_hint_3": "Qualidade fotorrealista — vale a espera",
     "loading_hint_4": "Explore cada cômodo como se estivesse lá",
     "loading_3d_badge": "Navegação 3D livre · não é foto 360°",
+    "wizard": {
+      "fullscreen_title": "Melhor em tela cheia",
+      "fullscreen_sub": "Toque para expandir e girar",
+      "fullscreen_btn": "Ativar tela cheia",
+      "move_left_label": "Joystick",
+      "move_left_sub": "Mova para andar",
+      "move_right_label": "Arraste",
+      "move_right_sub": "Para olhar ao redor",
+      "move_desktop_label": "Use WASD para mover",
+      "move_desktop_sub": "Clique e arraste para olhar",
+      "rotate_title": "Vire o celular",
+      "rotate_sub": "A experiência é melhor em modo paisagem"
+    },
     "gallery": {
       "title": "Tours",
       "empty": "Nenhum tour disponível ainda.",

@@ -268,6 +268,19 @@
     "loading_hint_3": "Photorealistic quality — worth the wait",
     "loading_hint_4": "Explore every room as if you were there",
     "loading_3d_badge": "Free 3D navigation · not a 360° photo",
+    "wizard": {
+      "fullscreen_title": "Better in fullscreen",
+      "fullscreen_sub": "Tap to expand and rotate",
+      "fullscreen_btn": "Enter fullscreen",
+      "move_left_label": "Joystick",
+      "move_left_sub": "Move to walk",
+      "move_right_label": "Drag",
+      "move_right_sub": "To look around",
+      "move_desktop_label": "Use WASD to move",
+      "move_desktop_sub": "Click and drag to look",
+      "rotate_title": "Rotate your phone",
+      "rotate_sub": "The experience is better in landscape mode"
+    },
     "gallery": {
       "title": "Tours",
       "empty": "No tours available yet.",

@@ -268,6 +268,19 @@
     "loading_hint_3": "Calidad fotorrealista — vale la pena esperar",
     "loading_hint_4": "Explora cada habitación como si estuvieras allí",
     "loading_3d_badge": "Navegación 3D libre · no es foto 360°",
+    "wizard": {
+      "fullscreen_title": "Mejor en pantalla completa",
+      "fullscreen_sub": "Toca para expandir y rotar",
+      "fullscreen_btn": "Activar pantalla completa",
+      "move_left_label": "Joystick",
+      "move_left_sub": "Muévete para caminar",
+      "move_right_label": "Arrastra",
+      "move_right_sub": "Para mirar alrededor",
+      "move_desktop_label": "Usa WASD para moverte",
+      "move_desktop_sub": "Clic y arrastra para mirar",
+      "rotate_title": "Gira tu teléfono",
+      "rotate_sub": "La experiencia es mejor en modo horizontal"
+    },
     "gallery": {
       "title": "Tours",
       "empty": "Aún no hay tours disponibles.",
