@@ -34,12 +34,12 @@ export function ShareNudge({ visible, onShare, onDismiss }: ShareNudgeProps) {
       }}
       role="status"
     >
-      <div className="flex items-center gap-3 rounded-full border border-white/15 bg-black/70 px-4 py-2.5 shadow-lg backdrop-blur-md">
+      <div className="flex items-center gap-3 rounded-full border border-white/10 bg-black/75 px-4 py-2.5 shadow-lg backdrop-blur-md">
         <span className="text-sm text-white/85">{t('share_nudge_text')}</span>
         <button
           type="button"
           onClick={onShare}
-          className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-white/25"
+          className="rounded-full border border-primary/30 bg-primary/20 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/30"
         >
           {t('share_nudge_cta')}
         </button>
