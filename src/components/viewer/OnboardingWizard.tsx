@@ -31,7 +31,7 @@ export function OnboardingWizard({ api, mode, viewerReady, cameFromWaypoint }: O
     return window.matchMedia('(orientation: portrait)').matches;
   }, []);
 
-  const [step, setStep] = useState<'fullscreen' | 'move' | 'rotate' | 'done'>('fullscreen');
+  const [step, setStep] = useState<'fullscreen' | 'move-joystick' | 'move-look' | 'rotate' | 'done'>('fullscreen');
   const [visible, setVisible] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
 
@@ -79,7 +79,7 @@ export function OnboardingWizard({ api, mode, viewerReady, cameFromWaypoint }: O
     }
     if (count >= MAX_SHOWS) return;
 
-    const firstStep = isMobile ? 'fullscreen' : 'move';
+    const firstStep = isMobile ? 'fullscreen' : 'move-joystick';
     setStep(firstStep);
     setShouldRender(true);
     requestAnimationFrame(() => setVisible(true));
@@ -102,14 +102,14 @@ export function OnboardingWizard({ api, mode, viewerReady, cameFromWaypoint }: O
       close();
       return;
     }
-    setStep('move');
+    setStep('move-joystick');
   }, [close]);
 
-  // Passo 1 (move): detecta INPUT real (joystick/teclado), não distância 3D.
-  // Corrige bug onde speedScale pequeno em cenas compactas nunca atingia o
-  // MOVE_THRESHOLD de distância, fazendo o wizard nunca fechar.
+  // Sub-etapa A (move-joystick): detecta INPUT real de movimento (joystick/teclado),
+  // não distância 3D. Corrige bug onde speedScale pequeno em cenas compactas nunca
+  // atingia o threshold de distância, fazendo o wizard nunca fechar.
   useEffect(() => {
-    if (step !== 'move' || !api || !visible) return;
+    if (step !== 'move-joystick' || !api || !visible) return;
 
     moveDurationRef.current = 0;
     lastCheckRef.current = Date.now();
@@ -121,12 +121,13 @@ export function OnboardingWizard({ api, mode, viewerReady, cameFromWaypoint }: O
       const elapsed = now - lastCheckRef.current;
       lastCheckRef.current = now;
 
-      const isMoving = api.isMoveInputActive();
-
-      if (isMoving) {
+      if (api.isMoveInputActive()) {
         moveDurationRef.current += elapsed;
         if (moveDurationRef.current >= MOVE_REQUIRED_MS) {
-          if (isMobile && isPortrait) {
+          // Desktop não tem sub-etapa de "olhar" separada — um único hint já mostra WASD + mouse.
+          if (isMobile) {
+            setStep('move-look');
+          } else if (isPortrait) {
             setStep('rotate');
           } else {
             close();
@@ -139,6 +140,37 @@ export function OnboardingWizard({ api, mode, viewerReady, cameFromWaypoint }: O
 
     return () => window.clearInterval(interval);
   }, [step, api, visible, isMobile, isPortrait, close]);
+
+  // Sub-etapa B (move-look): mobile only — detecta INPUT real de "olhar" (drag ativo).
+  useEffect(() => {
+    if (step !== 'move-look' || !api || !visible) return;
+
+    moveDurationRef.current = 0;
+    lastCheckRef.current = Date.now();
+
+    const interval = window.setInterval(() => {
+      if (!api) return;
+
+      const now = Date.now();
+      const elapsed = now - lastCheckRef.current;
+      lastCheckRef.current = now;
+
+      if (api.isLookInputActive()) {
+        moveDurationRef.current += elapsed;
+        if (moveDurationRef.current >= MOVE_REQUIRED_MS) {
+          if (isPortrait) {
+            setStep('rotate');
+          } else {
+            close();
+          }
+        }
+      } else {
+        moveDurationRef.current = 0;
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => window.clearInterval(interval);
+  }, [step, api, visible, isPortrait, close]);
 
   useEffect(() => {
     if (step !== 'rotate') return;
@@ -162,6 +194,12 @@ export function OnboardingWizard({ api, mode, viewerReady, cameFromWaypoint }: O
         @keyframes imerso-wizard-progress {
           from { width: 0%; }
           to { width: 100%; }
+        }
+        @keyframes imerso-joystick-demo {
+          0%, 100% { transform: translate(0, 0); }
+          25% { transform: translate(18px, -10px); }
+          50% { transform: translate(0, 14px); }
+          75% { transform: translate(-18px, -10px); }
         }
       `}</style>
 
@@ -212,72 +250,43 @@ export function OnboardingWizard({ api, mode, viewerReady, cameFromWaypoint }: O
           </div>
         )}
 
-        {/* ── Passo 1: mover ──────────────────────────────────────────────── */}
-        {step === 'move' && (
+        {/* ── Sub-etapa A: joystick (mobile) ou WASD+mouse (desktop) ──────── */}
+        {step === 'move-joystick' && (
           <>
             {isMobile ? (
-              <>
-                {/* Anotação esquerda: joystick */}
-                <div
-                  className="pointer-events-none absolute flex flex-col items-center"
-                  style={{ left: '12%', top: '55%', transform: 'translate(-50%, -50%)' }}
-                >
+              <div
+                className="pointer-events-none absolute bottom-0 left-0 top-0 flex items-center justify-center"
+                style={{ width: '50%' }}
+              >
+                <div className="flex flex-col items-center gap-3">
                   <div
-                    className="flex h-10 w-10 items-center justify-center rounded-full"
+                    className="relative flex items-center justify-center rounded-full"
                     style={{
-                      background: 'rgba(79,142,247,0.15)',
-                      border: '1px solid rgba(79,142,247,0.3)',
-                      backdropFilter: 'blur(8px)',
-                      color: '#4F8EF7',
-                      animation: 'imerso-wizard-pulse 1.6s ease-in-out infinite',
+                      width: 96,
+                      height: 96,
+                      background: 'rgba(79,142,247,0.08)',
+                      border: '1.5px dashed rgba(79,142,247,0.35)',
                     }}
                   >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M12 5v14M5 12h14M9 8l3-3 3 3M9 16l3 3 3-3M8 9l-3 3 3 3M16 9l3 3-3 3" />
-                    </svg>
+                    <div
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: '50%',
+                        background: '#4F8EF7',
+                        boxShadow: '0 0 16px rgba(79,142,247,0.6)',
+                        animation: 'imerso-joystick-demo 1.8s ease-in-out infinite',
+                      }}
+                    />
                   </div>
-                  <div style={{ width: 2, height: 20, background: 'rgba(79,142,247,0.4)' }} />
                   <div
                     className="rounded-xl px-3 py-2 text-center"
                     style={{ background: 'rgba(15,23,41,0.7)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}
                   >
-                    <p className="text-sm font-medium text-white">{t('wizard.move_left_label')}</p>
-                    <p className="mt-0.5 text-xs text-white/50">{t('wizard.move_left_sub')}</p>
+                    <p className="text-sm font-medium text-white">{t('wizard.move_joystick_text')}</p>
                   </div>
                 </div>
-
-                {/* Anotação direita: arrastar para olhar */}
-                <div
-                  className="pointer-events-none absolute flex flex-col items-center"
-                  style={{ right: '12%', top: '55%', transform: 'translate(50%, -50%)' }}
-                >
-                  <div
-                    className="flex h-10 w-10 items-center justify-center rounded-full"
-                    style={{
-                      background: 'rgba(79,142,247,0.15)',
-                      border: '1px solid rgba(79,142,247,0.3)',
-                      backdropFilter: 'blur(8px)',
-                      color: '#4F8EF7',
-                      animation: 'imerso-wizard-pulse 1.6s ease-in-out infinite',
-                    }}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0-2-2 2 2 0 0 0-2 2v0" />
-                      <path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2" />
-                      <path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8" />
-                      <path d="M18 8a2 2 0 0 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
-                    </svg>
-                  </div>
-                  <div style={{ width: 2, height: 20, background: 'rgba(79,142,247,0.4)' }} />
-                  <div
-                    className="rounded-xl px-3 py-2 text-center"
-                    style={{ background: 'rgba(15,23,41,0.7)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}
-                  >
-                    <p className="text-sm font-medium text-white">{t('wizard.move_right_label')}</p>
-                    <p className="mt-0.5 text-xs text-white/50">{t('wizard.move_right_sub')}</p>
-                  </div>
-                </div>
-              </>
+              </div>
             ) : (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div
@@ -305,6 +314,35 @@ export function OnboardingWizard({ api, mode, viewerReady, cameFromWaypoint }: O
               </div>
             )}
           </>
+        )}
+
+        {/* ── Sub-etapa B: arrastar para olhar (mobile only) ───────────────── */}
+        {step === 'move-look' && (
+          <div
+            className="pointer-events-none absolute bottom-0 right-0 top-0 flex items-center justify-center"
+            style={{ width: '50%' }}
+          >
+            <div className="flex flex-col items-center gap-3">
+              <svg width="90" height="60" viewBox="0 0 90 60" fill="none" aria-hidden>
+                <path
+                  d="M15 45 Q 45 10 75 45"
+                  stroke="rgba(79,142,247,0.35)"
+                  strokeWidth="2"
+                  strokeDasharray="4 4"
+                  fill="none"
+                />
+                <circle r="7" fill="#4F8EF7" style={{ filter: 'drop-shadow(0 0 8px rgba(79,142,247,0.6))' }}>
+                  <animateMotion path="M15 45 Q 45 10 75 45" dur="1.8s" repeatCount="indefinite" />
+                </circle>
+              </svg>
+              <div
+                className="rounded-xl px-3 py-2 text-center"
+                style={{ background: 'rgba(15,23,41,0.7)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}
+              >
+                <p className="text-sm font-medium text-white">{t('wizard.move_look_text')}</p>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* ── Passo 2: rotacionar (mobile portrait) ───────────────────────── */}
