@@ -512,9 +512,19 @@ export function SplatViewer({
         if (cameraUpInverted) tmpBaseQ.set(1, 0, 0, 0);
 
         let rafId = 0;
+        // Referência 60fps — moveSpeed foi calibrado para ~16.6ms por frame
+        const REFERENCE_DELTA_S = 1 / 60;
+        let lastFrameTime = performance.now();
+
         function fpsLoop() {
           rafId = requestAnimationFrame(fpsLoop);
           if (!mounted || !viewerRef.current) return;
+
+          const now = performance.now();
+          // Limita delta para evitar salto após tab em background
+          const deltaS = Math.min((now - lastFrameTime) / 1000, 0.1);
+          lastFrameTime = now;
+          const deltaFactor = deltaS / REFERENCE_DELTA_S;
 
           if (!isCoarsePointer) {
             let mx = 0, mz = 0;
@@ -545,7 +555,8 @@ export function SplatViewer({
             tmpRight.y = 0;
             if (tmpRight.lengthSq() > 0.001) tmpRight.normalize();
             const { expandedBounds, targetY } = cachedNav;
-            const moveSpeed = moveSpeedRef.current * (cachedNav.speedScale ?? 1.0);
+            const moveSpeed =
+              moveSpeedRef.current * (cachedNav.speedScale ?? 1.0) * deltaFactor;
             cam.position.addScaledVector(tmpForward, -moveInput.z * moveSpeed);
             cam.position.addScaledVector(tmpRight, moveInput.x * moveSpeed);
             cam.position.y = targetY;
@@ -555,6 +566,7 @@ export function SplatViewer({
             }
           }
 
+          // zoomDelta acumula eventos wheel/pinch entre frames — independente de FPS, sem deltaFactor
           if (zoomDelta !== 0) {
             const { expandedBounds } = cachedNav;
             tmpZoomForward.set(0, 0, -1).applyQuaternion(cam.quaternion);
@@ -674,17 +686,21 @@ export function SplatViewer({
             const v = viewerRef.current;
             if (!v || !mounted) return;
             try {
+              // Remove lite antes do full: evita coexistência (sort dobrado) e permite
+              // progressiveLoad — a lib ignora progressiveLoad quando já há cena ativa.
+              if (typeof v.removeSplatScene === 'function') {
+                await v.removeSplatScene(0, false);
+              }
+              if (!mounted) return;
               await v.addSplatScene(splatUrl, {
-                progressiveLoad: true, showLoadingUI: false,
+                progressiveLoad: true,
+                showLoadingUI: false,
                 onProgress: (pct: number) => {
-                  callbacksRef.current.onProgress?.(Math.min(100, Math.round(55+(pct*45)/100)));
+                  callbacksRef.current.onProgress?.(Math.min(100, Math.round(55 + (pct * 45) / 100)));
                   if (pct >= 99) callbacksRef.current.onProgress?.(100);
                 },
               });
               if (!mounted) return;
-              if (typeof v.removeSplatScene === 'function') {
-                try { await v.removeSplatScene(0, false); } catch { /* duas cenas coexistem */ }
-              }
               const fitted2 = fitCameraToSplat(v, cameraUpInverted);
               if (fitted2) {
                 boundsRef.current = fitted2.bounds;
