@@ -50,6 +50,7 @@ export interface SplatViewerAPI {
   resetCamera: () => void;
   getCameraState: () => { position: number[]; target: number[] };
   isMoveInputActive: () => boolean;
+  isLookInputActive: () => boolean;
   setCameraState: (state: { position: number[]; target: number[] }) => void;
   takeScreenshot: () => Promise<Blob>;
   enterFullscreen: () => void;
@@ -609,6 +610,7 @@ export function SplatViewer({
             return { position: pos.toArray(), target: [tgt.x, tgt.y, tgt.z] };
           },
           isMoveInputActive: () => moveInput.x !== 0 || moveInput.z !== 0,
+          isLookInputActive: () => lastPointer !== null,
           setCameraState: (state) => {
             const { expandedBounds: ex } = navFromBounds(boundsRef.current, cam.position.y);
             cam.position.fromArray(state.position);
