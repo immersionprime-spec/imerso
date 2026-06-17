@@ -78,7 +78,7 @@ export function PropertySummaryCard({ tour, onExpand, visible }: PropertySummary
           style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}
         >
           <div className="flex items-start justify-between gap-2">
-            <p className="line-clamp-2 text-[11px] font-medium leading-tight text-white">{tour.titulo}</p>
+            <p className="line-clamp-2 font-display text-[13px] font-medium leading-tight text-white">{tour.titulo}</p>
             <button
               type="button"
               onClick={() => setCollapsed(true)}
@@ -99,10 +99,16 @@ export function PropertySummaryCard({ tour, onExpand, visible }: PropertySummary
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-white/60">
-            {tour.bairro ? <span>{tour.bairro}</span> : null}
-            {tour.quartos != null ? <span>{tour.quartos} quartos</span> : null}
-            {tour.area_m2 != null ? <span>{tour.area_m2}m²</span> : null}
+          <div className="flex flex-wrap gap-1.5">
+            {tour.bairro ? (
+              <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] text-white/60">{tour.bairro}</span>
+            ) : null}
+            {tour.quartos != null ? (
+              <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] text-white/60">{tour.quartos} quartos</span>
+            ) : null}
+            {tour.area_m2 != null ? (
+              <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] text-white/60">{tour.area_m2}m²</span>
+            ) : null}
           </div>
 
           {tour.valor ? (
@@ -117,7 +123,7 @@ export function PropertySummaryCard({ tour, onExpand, visible }: PropertySummary
           <button
             type="button"
             onClick={onExpand}
-            className="mt-1 rounded-md bg-white/10 px-2 py-1 text-center text-[10px] text-white/80 transition-colors hover:bg-white/20"
+            className="mt-1 rounded-lg border border-primary/20 bg-primary/15 px-2 py-1.5 text-center text-[11px] font-medium text-primary transition-colors hover:bg-primary/25"
           >
             {t('property_card_details')}
           </button>
