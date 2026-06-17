@@ -130,6 +130,12 @@ function fitCameraToSplat(
     const box = new Box3().setFromObject(splatMesh);
     if (box.isEmpty()) return null;
     const size = box.getSize(new Vector3());
+    // TODO(founder): diagnóstico speedScale — remover após coleta (sala vs quarto)
+    console.log('[Imerso fitCameraToSplat]', {
+      boxMin: [box.min.x, box.min.y, box.min.z],
+      boxMax: [box.max.x, box.max.y, box.max.z],
+      size: [size.x, size.y, size.z],
+    });
     const center = box.getCenter(new Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
     if (!Number.isFinite(maxDim) || maxDim === 0) return null;
@@ -163,6 +169,15 @@ function navFromBounds(bounds: SceneBounds | null, fallbackY: number) {
   const diagonal = Math.sqrt(sizeX * sizeX + sizeZ * sizeZ);
   // Referência: cena com diagonal ~10 unidades = speedScale 1.0
   const speedScale = Math.max(0.25, Math.min(4.0, diagonal / 10.0));
+  // TODO(founder): diagnóstico speedScale — remover após coleta (sala vs quarto)
+  console.log('[Imerso navFromBounds]', {
+    boundsMin: bounds.min,
+    boundsMax: bounds.max,
+    sizeX,
+    sizeZ,
+    diagonal,
+    speedScale,
+  });
   return { expandedBounds, targetY, speedScale };
 }
 
