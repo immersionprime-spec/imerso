@@ -9,38 +9,51 @@ import {
   Map,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Button } from '@/components/ui/Button';
 import type { SplatViewerAPI, MoveSpeedLevel } from './SplatViewer';
 import type { ReactNode } from 'react';
 
-interface TooltipBtnProps {
+interface PillButtonProps {
   label: string;
   children: ReactNode;
   onClick?: () => void;
-  variant?: 'outline' | 'primary' | 'ghost';
   pressed?: boolean;
 }
 
-function TooltipBtn({ label, children, onClick, variant = 'outline', pressed }: TooltipBtnProps) {
+function PillButton({ label, children, onClick, pressed }: PillButtonProps) {
   return (
-    <div className="group relative">
-      <Button
+    <div className="group relative flex">
+      <button
         type="button"
-        variant={variant}
-        size="icon"
-        className="glass border-border-strong bg-surface/80 h-11 w-11 md:h-9 md:w-9"
         aria-label={label}
         aria-pressed={pressed}
         onClick={onClick}
+        className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors duration-150 md:h-10 md:w-10 ${
+          pressed ? 'bg-primary/20 text-white' : 'text-white/80 hover:text-white'
+        }`}
       >
         {children}
-      </Button>
+      </button>
       <span
-        className="pointer-events-none absolute left-1/2 top-full mt-1.5 hidden -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-[10px] text-white backdrop-blur-sm md:group-hover:block"
+        className="pointer-events-none absolute left-1/2 top-full mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-black/80 px-2 py-1 text-[11px] text-white md:group-hover:block"
         role="tooltip"
       >
         {label}
       </span>
+    </div>
+  );
+}
+
+function Divider() {
+  return <span aria-hidden="true" className="h-5 w-px shrink-0 bg-white/10" />;
+}
+
+function PillGroup({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className="inline-flex items-center gap-0 rounded-full border border-white/10 p-1 backdrop-blur-md"
+      style={{ background: 'rgba(15,23,41,0.7)', boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}
+    >
+      {children}
     </div>
   );
 }
@@ -71,35 +84,39 @@ export function ViewerControls({
 
   return (
     <>
-      <div className="pointer-events-none fixed left-3 top-3 z-30 flex flex-col gap-2 sm:left-4 sm:top-4">
-        <div className="pointer-events-auto flex gap-2">
-          <TooltipBtn label={t('reset_view')} onClick={() => api?.resetCamera()}>
-            <Home className="h-4 w-4" />
-          </TooltipBtn>
-          <TooltipBtn label={t('info_button')} onClick={onInfo}>
-            <Info className="h-4 w-4" />
-          </TooltipBtn>
-          {onMinimapToggle ? (
-            <TooltipBtn
-              label={t('minimap.toggle')}
-              onClick={onMinimapToggle}
-              variant={minimapOpen ? 'primary' : 'outline'}
-              pressed={minimapOpen}
-            >
-              <Map className="h-4 w-4" />
-            </TooltipBtn>
-          ) : null}
+      <div className="pointer-events-none fixed left-3 top-3 z-30 sm:left-4 sm:top-4">
+        <div className="pointer-events-auto">
+          <PillGroup>
+            <PillButton label={t('reset_view')} onClick={() => api?.resetCamera()}>
+              <Home className="h-[18px] w-[18px]" />
+            </PillButton>
+            <Divider />
+            <PillButton label={t('info_button')} onClick={onInfo}>
+              <Info className="h-[18px] w-[18px]" />
+            </PillButton>
+            {onMinimapToggle ? (
+              <>
+                <Divider />
+                <PillButton label={t('minimap.toggle')} onClick={onMinimapToggle} pressed={minimapOpen}>
+                  <Map className="h-[18px] w-[18px]" />
+                </PillButton>
+              </>
+            ) : null}
+          </PillGroup>
         </div>
       </div>
 
-      <div className="pointer-events-none fixed right-3 top-3 z-30 flex flex-col items-end gap-2 sm:right-4 sm:top-4">
-        <div className="pointer-events-auto flex flex-wrap justify-end gap-2">
-          <TooltipBtn label={t('share')} onClick={onShare}>
-            <Share2 className="h-4 w-4" />
-          </TooltipBtn>
-          <TooltipBtn label={t('fullscreen')} onClick={onToggleFullscreen}>
-            {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-          </TooltipBtn>
+      <div className="pointer-events-none fixed right-3 top-3 z-30 sm:right-4 sm:top-4">
+        <div className="pointer-events-auto">
+          <PillGroup>
+            <PillButton label={t('share')} onClick={onShare}>
+              <Share2 className="h-[18px] w-[18px]" />
+            </PillButton>
+            <Divider />
+            <PillButton label={t('fullscreen')} onClick={onToggleFullscreen}>
+              {isFullscreen ? <Minimize className="h-[18px] w-[18px]" /> : <Maximize className="h-[18px] w-[18px]" />}
+            </PillButton>
+          </PillGroup>
         </div>
       </div>
     </>
