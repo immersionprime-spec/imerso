@@ -29,7 +29,14 @@ export const QUALITY_PRESETS: Record<QualityLevel, QualityPreset> = {
 export function detectInitialQuality(): QualityLevel {
   if (typeof window === 'undefined') return 'medium';
   const ua = navigator.userAgent;
-  const isTablet = /iPad/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua));
+  // iOS 13+ reporta UA de desktop Safari — maxTouchPoints + MacIntel indica iPad disfarçado
+  const isIpadDisguised =
+    navigator.maxTouchPoints > 1 &&
+    (navigator.platform === 'MacIntel' || /Mac/i.test(ua));
+  const isTablet =
+    /iPad/i.test(ua) ||
+    (/Android/i.test(ua) && !/Mobile/i.test(ua)) ||
+    isIpadDisguised;
   const isMobile = /Android.*Mobile|iPhone/i.test(ua);
   const memGB = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
 
