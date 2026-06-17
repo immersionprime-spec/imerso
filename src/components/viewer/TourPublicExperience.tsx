@@ -20,6 +20,7 @@ import { PortaButtons } from './PortaButtons';
 import { WaypointLabels } from './WaypointLabels';
 import { ProximityPortaTransition } from './ProximityPortaTransition';
 import { NavigationHint } from './NavigationHint';
+import { OnboardingWizard } from './OnboardingWizard';
 import { PropertySummaryCard } from './PropertySummaryCard';
 import { ShareNudge } from './ShareNudge';
 import { AmbientAudio } from './AmbientAudio';
@@ -50,6 +51,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
   const [fullscreen, setFullscreen] = useState(false);
   const [minimapOpen, setMinimapOpen] = useState(false);
   const [showNavHint, setShowNavHint] = useState(false);
+  const [wizardMode, setWizardMode] = useState<'entry' | 'waypoint' | null>(null);
   const [showShareNudge, setShowShareNudge] = useState(false);
   const shareNudgeDismissedRef = useRef(false);
   const startedRef = useRef<number | null>(null);
@@ -125,6 +127,7 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
   useEffect(() => {
     if (!loadingOverlay && !cameFromRef.current) {
       setShowNavHint(true);
+      setWizardMode('entry');
     }
   }, [loadingOverlay]);
 
@@ -319,6 +322,12 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
         </div>
       ) : null}
       <NavigationHint visible={showNavHint} onDismiss={() => setShowNavHint(false)} />
+      <OnboardingWizard
+        api={api}
+        mode={wizardMode ?? 'entry'}
+        viewerReady={viewerReady}
+        cameFromWaypoint={cameFromRef.current}
+      />
       <div className="pointer-events-none fixed bottom-3 left-3 z-20 rounded-md glass px-3 py-1.5 text-[10px] text-text-muted sm:text-xs">
         Powered by Imerso
       </div>
