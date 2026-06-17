@@ -279,7 +279,9 @@
       "move_desktop_label": "Usa WASD para moverte",
       "move_desktop_sub": "Clic y arrastra para mirar",
       "rotate_title": "Gira tu teléfono",
-      "rotate_sub": "La experiencia es mejor en modo horizontal"
+      "rotate_sub": "La experiencia es mejor en modo horizontal",
+      "move_joystick_text": "Toca y arrastra aquí para caminar",
+      "move_look_text": "Arrastra la pantalla para mirar alrededor"
     },
     "gallery": {
       "title": "Tours",

@@ -279,7 +279,9 @@
       "move_desktop_label": "Use WASD to move",
       "move_desktop_sub": "Click and drag to look",
       "rotate_title": "Rotate your phone",
-      "rotate_sub": "The experience is better in landscape mode"
+      "rotate_sub": "The experience is better in landscape mode",
+      "move_joystick_text": "Tap and drag here to walk",
+      "move_look_text": "Drag the screen to look around"
     },
     "gallery": {
       "title": "Tours",

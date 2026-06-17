@@ -330,7 +330,9 @@
       "move_desktop_label": "Use WASD para mover",
       "move_desktop_sub": "Clique e arraste para olhar",
       "rotate_title": "Vire o celular",
-      "rotate_sub": "A experiência é melhor em modo paisagem"
+      "rotate_sub": "A experiência é melhor em modo paisagem",
+      "move_joystick_text": "Toque e arraste aqui para caminhar",
+      "move_look_text": "Arraste a tela para olhar ao redor"
     },
     "gallery": {
       "title": "Tours",
