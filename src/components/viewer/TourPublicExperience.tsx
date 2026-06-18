@@ -126,8 +126,21 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
 
   useEffect(() => {
     if (!loadingOverlay && !cameFromRef.current) {
-      setShowNavHint(true);
       setWizardMode('entry');
+      const LS_KEY = 'imerso_wizard_count';
+      const MAX_SHOWS = 2;
+      const isDesktop =
+        typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches;
+      let count = 0;
+      try {
+        count = parseInt(localStorage.getItem(LS_KEY) ?? '0', 10);
+      } catch {
+        // localStorage indisponível
+      }
+      // Só no desktop, após wizard esgotado — mobile/visitas iniciais ficam com OnboardingWizard
+      if (isDesktop && count >= MAX_SHOWS) {
+        setShowNavHint(true);
+      }
     }
   }, [loadingOverlay]);
 
