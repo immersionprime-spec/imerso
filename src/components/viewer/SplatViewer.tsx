@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  Box3,
   Camera,
   Object3D,
   PerspectiveCamera,
@@ -131,19 +130,43 @@ function fitCameraToSplat(
       console.log('[Imerso fitCameraToSplat] return null: !splatMesh');
       return null;
     }
-    const box = new Box3().setFromObject(splatMesh);
-    if (box.isEmpty()) {
-      console.log('[Imerso fitCameraToSplat] return null: box.isEmpty()');
+    if (typeof splatMesh.getSplatCount !== 'function' || typeof splatMesh.getSplatCenter !== 'function') {
+      console.log('[Imerso fitCameraToSplat] return null: getSplatCount/getSplatCenter indisponível');
       return null;
     }
-    const size = box.getSize(new Vector3());
+    const splatCount = splatMesh.getSplatCount() as number;
+    if (!splatCount) {
+      console.log('[Imerso fitCameraToSplat] return null: splatCount === 0', { splatCount });
+      return null;
+    }
+    // Bounds manual — setFromObject retorna vazio porque splats não usam geometria Three.js convencional
+    const tempCenter = new Vector3();
+    let minX = Infinity;
+    let minY = Infinity;
+    let minZ = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    let maxZ = -Infinity;
+    const boundsStart = performance.now();
+    for (let i = 0; i < splatCount; i++) {
+      splatMesh.getSplatCenter(i, tempCenter);
+      if (tempCenter.x < minX) minX = tempCenter.x;
+      if (tempCenter.y < minY) minY = tempCenter.y;
+      if (tempCenter.z < minZ) minZ = tempCenter.z;
+      if (tempCenter.x > maxX) maxX = tempCenter.x;
+      if (tempCenter.y > maxY) maxY = tempCenter.y;
+      if (tempCenter.z > maxZ) maxZ = tempCenter.z;
+    }
+    const boundsMs = performance.now() - boundsStart;
+    console.log('[Imerso bounds] tempo de calculo (ms):', boundsMs, 'splatCount:', splatCount);
+    const size = new Vector3(maxX - minX, maxY - minY, maxZ - minZ);
     // TODO(founder): diagnóstico speedScale — remover após coleta (sala vs quarto)
     console.log('[Imerso fitCameraToSplat]', {
-      boxMin: [box.min.x, box.min.y, box.min.z],
-      boxMax: [box.max.x, box.max.y, box.max.z],
+      boxMin: [minX, minY, minZ],
+      boxMax: [maxX, maxY, maxZ],
       size: [size.x, size.y, size.z],
     });
-    const center = box.getCenter(new Vector3());
+    const center = new Vector3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
     const maxDim = Math.max(size.x, size.y, size.z);
     if (!Number.isFinite(maxDim) || maxDim === 0) {
       console.log('[Imerso fitCameraToSplat] return null: !Number.isFinite(maxDim) || maxDim === 0', {
@@ -161,8 +184,8 @@ function fitCameraToSplat(
       viewer.camera.updateProjectionMatrix?.();
     }
     const bounds: SceneBounds = {
-      min: [box.min.x, box.min.y, box.min.z],
-      max: [box.max.x, box.max.y, box.max.z],
+      min: [minX, minY, minZ],
+      max: [maxX, maxY, maxZ],
     };
     return { position: camPos, target: tgt, bounds };
   } catch (e) {
