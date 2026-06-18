@@ -77,6 +77,16 @@ export function OnboardingWizard({ api, mode, viewerReady, cameFromWaypoint }: O
     } catch {
       // localStorage indisponível
     }
+
+    // Mobile sem tela cheia: step fullscreen sempre (browser sai do fullscreen a cada reload)
+    if (isMobile && noFullscreen) {
+      setShouldRender(true);
+      setStep('fullscreen');
+      requestAnimationFrame(() => setVisible(true));
+      return;
+    }
+
+    // Wizard de navegação: limitado por MAX_SHOWS
     if (count >= MAX_SHOWS) return;
 
     const firstStep = isMobile ? 'fullscreen' : 'move-joystick';
