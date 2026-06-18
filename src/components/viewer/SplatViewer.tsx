@@ -118,6 +118,59 @@ function expandBboxXZ(bounds: SceneBounds, factor: number): SceneBounds {
   };
 }
 
+// Diagonal mínima plausível para um cômodo real (unidades da cena) — rede de segurança contra bounds prematuros
+const MIN_PLAUSIBLE_BOUNDS_DIAGONAL = 2;
+// Exclui ~99% da distribuição normal — pontos fantasma além de 2.5σ em cada eixo
+const SIGMA_THRESHOLD = 1.5;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function getSplatMeshFromViewer(viewer: ViewerInstance): ViewerInstance | null {
+  return viewer?.splatMesh ?? viewer?.splatScenes?.[0]?.splatMesh ?? viewer?.splatScenes?.[0] ?? null;
+}
+
+function readSplatCounts(viewer: ViewerInstance): { built: number; total: number } {
+  const mesh = getSplatMeshFromViewer(viewer);
+  if (!mesh || typeof mesh.getSplatCount !== 'function') return { built: 0, total: 0 };
+  const built = mesh.getSplatCount(false) as number;
+  const total = mesh.getSplatCount(true) as number;
+  return { built, total };
+}
+
+/** Aguarda splatCount estabilizar — progressiveLoad pode resolver antes do buffer estar completo. */
+async function waitForStableSplatCount(
+  viewer: ViewerInstance,
+  intervalMs = 250,
+  maxAttempts = 10
+): Promise<number> {
+  let lastBuilt = 0;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await sleep(intervalMs);
+    const { built, total } = readSplatCounts(viewer);
+    console.log('[Imerso splatCount stabilize]', { attempt, built, total });
+    if (built > 0 && built === lastBuilt && built === total) return built;
+    lastBuilt = built;
+  }
+  const { built } = readSplatCounts(viewer);
+  return built;
+}
+
+async function fitCameraToSplatStable(
+  viewer: ViewerInstance,
+  cameraUpInverted: boolean
+): Promise<ReturnType<typeof fitCameraToSplat>> {
+  await waitForStableSplatCount(viewer);
+  return fitCameraToSplat(viewer, cameraUpInverted);
+}
+
+function boundsDiagonalXZ(bounds: SceneBounds): number {
+  const sizeX = bounds.max[0] - bounds.min[0];
+  const sizeZ = bounds.max[2] - bounds.min[2];
+  return Math.sqrt(sizeX * sizeX + sizeZ * sizeZ);
+}
+
 function fitCameraToSplat(
   viewer: ViewerInstance,
   cameraUpInverted: boolean
@@ -141,25 +194,98 @@ function fitCameraToSplat(
     }
     // Bounds manual — setFromObject retorna vazio porque splats não usam geometria Three.js convencional
     const tempCenter = new Vector3();
+    const boundsStart = performance.now();
+
+    // Passe 1 — centróide, desvio padrão e bounds ingênuo (fallback)
+    let sumX = 0;
+    let sumY = 0;
+    let sumZ = 0;
+    let sumX2 = 0;
+    let sumY2 = 0;
+    let sumZ2 = 0;
+    let naiveMinX = Infinity;
+    let naiveMinY = Infinity;
+    let naiveMinZ = Infinity;
+    let naiveMaxX = -Infinity;
+    let naiveMaxY = -Infinity;
+    let naiveMaxZ = -Infinity;
+    for (let i = 0; i < splatCount; i++) {
+      splatMesh.getSplatCenter(i, tempCenter);
+      const x = tempCenter.x;
+      const y = tempCenter.y;
+      const z = tempCenter.z;
+      sumX += x;
+      sumY += y;
+      sumZ += z;
+      sumX2 += x * x;
+      sumY2 += y * y;
+      sumZ2 += z * z;
+      if (x < naiveMinX) naiveMinX = x;
+      if (y < naiveMinY) naiveMinY = y;
+      if (z < naiveMinZ) naiveMinZ = z;
+      if (x > naiveMaxX) naiveMaxX = x;
+      if (y > naiveMaxY) naiveMaxY = y;
+      if (z > naiveMaxZ) naiveMaxZ = z;
+    }
+    const cx = sumX / splatCount;
+    const cy = sumY / splatCount;
+    const cz = sumZ / splatCount;
+    const sigmaX = Math.sqrt(Math.max(0, sumX2 / splatCount - cx * cx));
+    const sigmaY = Math.sqrt(Math.max(0, sumY2 / splatCount - cy * cy));
+    const sigmaZ = Math.sqrt(Math.max(0, sumZ2 / splatCount - cz * cz));
+
+    // Passe 2 — bounds filtrado (exclui outliers além de SIGMA_THRESHOLD σ)
     let minX = Infinity;
     let minY = Infinity;
     let minZ = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
     let maxZ = -Infinity;
-    const boundsStart = performance.now();
+    let splatsFiltrados = 0;
     for (let i = 0; i < splatCount; i++) {
       splatMesh.getSplatCenter(i, tempCenter);
-      if (tempCenter.x < minX) minX = tempCenter.x;
-      if (tempCenter.y < minY) minY = tempCenter.y;
-      if (tempCenter.z < minZ) minZ = tempCenter.z;
-      if (tempCenter.x > maxX) maxX = tempCenter.x;
-      if (tempCenter.y > maxY) maxY = tempCenter.y;
-      if (tempCenter.z > maxZ) maxZ = tempCenter.z;
+      const x = tempCenter.x;
+      const y = tempCenter.y;
+      const z = tempCenter.z;
+      if (
+        Math.abs(x - cx) <= SIGMA_THRESHOLD * sigmaX &&
+        Math.abs(y - cy) <= SIGMA_THRESHOLD * sigmaY &&
+        Math.abs(z - cz) <= SIGMA_THRESHOLD * sigmaZ
+      ) {
+        splatsFiltrados++;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (z < minZ) minZ = z;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+        if (z > maxZ) maxZ = z;
+      }
     }
+    if (splatsFiltrados === 0) {
+      minX = naiveMinX;
+      minY = naiveMinY;
+      minZ = naiveMinZ;
+      maxX = naiveMaxX;
+      maxY = naiveMaxY;
+      maxZ = naiveMaxZ;
+    }
+
     const boundsMs = performance.now() - boundsStart;
     console.log('[Imerso bounds] tempo de calculo (ms):', boundsMs, 'splatCount:', splatCount);
     const size = new Vector3(maxX - minX, maxY - minY, maxZ - minZ);
+    const boundsForDiagonal: SceneBounds = {
+      min: [minX, minY, minZ],
+      max: [maxX, maxY, maxZ],
+    };
+    const filteredDiagonal = boundsDiagonalXZ(boundsForDiagonal);
+    console.log('[Imerso bounds] filtrado', {
+      splatCount,
+      splatsFiltrados,
+      filteredDiagonal,
+      sigmaX,
+      sigmaY,
+      sigmaZ,
+    });
     // TODO(founder): diagnóstico speedScale — remover após coleta (sala vs quarto)
     console.log('[Imerso fitCameraToSplat]', {
       boxMin: [minX, minY, minZ],
@@ -187,6 +313,14 @@ function fitCameraToSplat(
       min: [minX, minY, minZ],
       max: [maxX, maxY, maxZ],
     };
+    const diagonal = boundsDiagonalXZ(bounds);
+    if (diagonal < MIN_PLAUSIBLE_BOUNDS_DIAGONAL) {
+      console.log('[Imerso fitCameraToSplat] return null: diagonal prematura/inválida', {
+        diagonal,
+        splatCount,
+      });
+      return null;
+    }
     return { position: camPos, target: tgt, bounds };
   } catch (e) {
     console.error('[Imerso fitCameraToSplat] EXCEPTION', e);
@@ -328,18 +462,20 @@ export function SplatViewer({
           viewer.renderer.setPixelRatio(dpr);
         }
         let cachedNav: ReturnType<typeof navFromBounds>;
-        let fitted = fitCameraToSplat(viewer, cameraUpInverted);
+        let fitted = await fitCameraToSplatStable(viewer, cameraUpInverted);
 
         if (!fitted) {
           await new Promise<void>((resolve) => {
             let attempts = 0;
             const retry = () => {
-              fitted = fitCameraToSplat(viewer, cameraUpInverted);
-              if (fitted || ++attempts >= 20 || !mounted) {
-                resolve();
-              } else {
-                window.setTimeout(retry, 150);
-              }
+              void fitCameraToSplatStable(viewer, cameraUpInverted).then((result) => {
+                fitted = result;
+                if (fitted || ++attempts >= 20 || !mounted) {
+                  resolve();
+                } else {
+                  window.setTimeout(retry, 150);
+                }
+              });
             };
             window.setTimeout(retry, 150);
           });
@@ -380,36 +516,45 @@ export function SplatViewer({
         let cachedYMin = initElevationRange.yMin;
         let cachedYMax = initElevationRange.yMax;
 
-        const applySceneFit = (): boolean => {
-          const fittedNow = fitCameraToSplat(viewer, cameraUpInverted);
-          if (!fittedNow) return false;
-          homeStateRef.current = { position: fittedNow.position, target: fittedNow.target };
-          boundsRef.current = fittedNow.bounds;
-          const navFit = navFromBounds(fittedNow.bounds, cam.position.y);
-          cachedNav = navFit;
-          cam.position.set(
-            (fittedNow.bounds.min[0] + fittedNow.bounds.max[0]) / 2,
-            navFit.targetY,
-            (fittedNow.bounds.min[2] + fittedNow.bounds.max[2]) / 2
-          );
-          yaw = (-splatRotationDeg * Math.PI) / 180;
-          pitch = 0;
-          lastYaw = -1;
-          lastPitch = -1;
-          const elevRange = elevationYRange(fittedNow.bounds, cam.position.y);
-          cachedYMin = elevRange.yMin;
-          cachedYMax = elevRange.yMax;
-          cam.updateMatrixWorld(true);
-          return true;
+        let fitRetryInFlight = false;
+        const applySceneFit = async (): Promise<boolean> => {
+          if (fitRetryInFlight) return false;
+          fitRetryInFlight = true;
+          try {
+            const fittedNow = await fitCameraToSplatStable(viewer, cameraUpInverted);
+            if (!fittedNow) return false;
+            homeStateRef.current = { position: fittedNow.position, target: fittedNow.target };
+            boundsRef.current = fittedNow.bounds;
+            const navFit = navFromBounds(fittedNow.bounds, cam.position.y);
+            cachedNav = navFit;
+            cam.position.set(
+              (fittedNow.bounds.min[0] + fittedNow.bounds.max[0]) / 2,
+              navFit.targetY,
+              (fittedNow.bounds.min[2] + fittedNow.bounds.max[2]) / 2
+            );
+            yaw = (-splatRotationDeg * Math.PI) / 180;
+            pitch = 0;
+            lastYaw = -1;
+            lastPitch = -1;
+            const elevRange = elevationYRange(fittedNow.bounds, cam.position.y);
+            cachedYMin = elevRange.yMin;
+            cachedYMax = elevRange.yMax;
+            cam.updateMatrixWorld(true);
+            return true;
+          } finally {
+            fitRetryInFlight = false;
+          }
         };
 
         if (!boundsRef.current) {
           let fitAttempts = 0;
           fitRetryTimer = window.setInterval(() => {
-            if (applySceneFit() || ++fitAttempts >= 30) {
-              if (fitRetryTimer !== null) window.clearInterval(fitRetryTimer);
-              fitRetryTimer = null;
-            }
+            void applySceneFit().then((ok) => {
+              if (ok || ++fitAttempts >= 30) {
+                if (fitRetryTimer !== null) window.clearInterval(fitRetryTimer);
+                fitRetryTimer = null;
+              }
+            });
           }, 300);
         }
 
@@ -740,6 +885,10 @@ export function SplatViewer({
             try {
               // Remove lite antes do full: evita coexistência (sort dobrado) e permite
               // progressiveLoad — a lib ignora progressiveLoad quando já há cena ativa.
+              if (fitRetryTimer !== null) {
+                window.clearInterval(fitRetryTimer);
+                fitRetryTimer = null;
+              }
               if (typeof v.removeSplatScene === 'function') {
                 await v.removeSplatScene(0, false);
               }
@@ -753,7 +902,15 @@ export function SplatViewer({
                 },
               });
               if (!mounted) return;
-              const fitted2 = fitCameraToSplat(v, cameraUpInverted);
+              const posLoadCounts = readSplatCounts(v);
+              console.log('[Imerso splatCount pos-load]', posLoadCounts);
+              let fitted2 = await fitCameraToSplatStable(v, cameraUpInverted);
+              if (!fitted2) {
+                for (let attempt = 0; attempt < 10 && !fitted2 && mounted; attempt++) {
+                  await sleep(250);
+                  fitted2 = await fitCameraToSplatStable(v, cameraUpInverted);
+                }
+              }
               if (fitted2) {
                 boundsRef.current = fitted2.bounds;
                 homeStateRef.current = { position: fitted2.position, target: fitted2.target };
