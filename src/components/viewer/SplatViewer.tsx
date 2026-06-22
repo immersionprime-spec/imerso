@@ -821,16 +821,12 @@ export function SplatViewer({
           isMoveInputActive: () => moveInput.x !== 0 || moveInput.z !== 0,
           isLookInputActive: () => lastPointer !== null,
           setCameraState: (state) => {
-            const { expandedBounds: ex } = navFromBounds(boundsRef.current, cam.position.y);
+            // Posição de waypoint confiável — sem clamp XZ (evita colar na borda do bounds)
             cam.position.fromArray(state.position);
             if (boundsRef.current) {
               cam.position.y = clamp(cam.position.y, cachedYMin, cachedYMax);
             }
             cachedNav.targetY = cam.position.y;
-            if (ex) {
-              cam.position.x = clamp(cam.position.x, ex.min[0], ex.max[0]);
-              cam.position.z = clamp(cam.position.z, ex.min[2], ex.max[2]);
-            }
             const cx = cam.position.x, cy = cam.position.y, cz = cam.position.z;
             const dx = state.target[0]-cx, dy = state.target[1]-cy, dz = state.target[2]-cz;
             yaw = Math.atan2(-dx, cameraUpInverted ? dz : -dz);
