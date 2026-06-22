@@ -162,52 +162,24 @@ export function TourPublicExperience({ data, shareUrl }: TourPublicExperiencePro
 
   const apiRef = useRef<SplatViewerAPI | null>(null);
 
-  // Lê tour de origem da query string (ex: ?from=<tour_id>)
-  // e busca o next_cam_position do waypoint deste tour que aponta de volta para a origem
-  const entryCamRef = useRef<{ position: number[]; target: number[] } | null>(null);
-  const entryCamResolvedRef = useRef(false);
-  if (!entryCamResolvedRef.current && typeof window !== 'undefined') {
-    entryCamResolvedRef.current = true;
-    const fromTourId = new URLSearchParams(window.location.search).get('from');
-    if (fromTourId) {
-      const wp = data.waypoints.find((w) => w.next_tour_id === fromTourId);
-      if (wp?.next_cam_position && wp?.next_cam_target) {
-        entryCamRef.current = {
-          position: wp.next_cam_position,
-          target: wp.next_cam_target,
-        };
-      }
-    }
-  }
-
   const onReady = useCallback(
     (viewerApi: SplatViewerAPI) => {
       setApi(viewerApi);
       apiRef.current = viewerApi;
       setViewerReady(true);
-      const cam = entryCamRef.current;
-      if (cam) {
-        viewerApi.setCameraState({ position: cam.position, target: cam.target });
-      } else {
-        const p = data.tour.camera_start_position;
-        const tgt = data.tour.camera_start_target;
-        if (p && tgt) {
-          viewerApi.setCameraState({ position: p, target: tgt });
-        }
+      const p = data.tour.camera_start_position;
+      const tgt = data.tour.camera_start_target;
+      if (p && tgt) {
+        viewerApi.setCameraState({ position: p, target: tgt });
       }
     },
-    [data.tour.camera_start_position, data.tour.camera_start_target, data.waypoints]
+    [data.tour.camera_start_position, data.tour.camera_start_target]
   );
 
-  /** Após lite -> full: restaura câmera correta. */
+  /** Após lite -> full: restaura câmera no ponto de entrada fixo do tour. */
   useEffect(() => {
     if (!hasLite || detailLoading) return;
     if (!api) return;
-    const cam = entryCamRef.current;
-    if (cam) {
-      api.setCameraState({ position: cam.position, target: cam.target });
-      return;
-    }
     const p = data.tour.camera_start_position;
     const tgt = data.tour.camera_start_target;
     if (!p || !tgt) return;
